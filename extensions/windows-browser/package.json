@@ -1,0 +1,8 @@
+{
+  "name": "ds-bot-windows-browser",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Ego Task Space browser session for DS-Bot, with a Playwright CDP fallback.",
+  "license": "Apache-2.0"
+}

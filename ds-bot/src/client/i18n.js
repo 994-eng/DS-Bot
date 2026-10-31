@@ -779,6 +779,11 @@ const ZH = {
   "Memory updated. Open {name}'s memory": '记忆已更新，打开 {name} 的记忆',
 
   // Browser
+  Screen: '屏幕',
+  "{name}'s screen": '{name} 的屏幕',
+  'Virtual screen': '虚拟屏幕',
+  'This Bot has its own screen. Other Bots cannot see or type on it.': '这个 Bot 有自己的屏幕。其他 Bot 看不到，也不能在上面操作。',
+  'Shared machine': '同一台机器',
   'Close browser': '关闭浏览器',
   'Open browser': '打开浏览器',
   "{name}'s browser": '{name} 的浏览器',

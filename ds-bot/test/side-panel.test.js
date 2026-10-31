@@ -25,8 +25,8 @@ test('the strip `···` offers a browser tab only where the browser works', () 
 
 test('the details `···` hides when it would be empty', () => {
   assert.deepEqual(drawerMenuKeys({ bot: true, canBrowse: true, canTerminal: true, canFiles: true }),
-    ['browser', 'side', 'sep', 'terminal', 'files'])
-  assert.deepEqual(drawerMenuKeys({ bot: true, canBrowse: false, canTerminal: false, canFiles: false }), ['side'])
+    ['browser', 'screen', 'side', 'sep', 'terminal', 'files'])
+  assert.deepEqual(drawerMenuKeys({ bot: true, canBrowse: false, canTerminal: false, canFiles: false }), ['screen', 'side'])
   assert.deepEqual(drawerMenuKeys({ bot: false, room: true, canBrowse: false, canTerminal: true, canFiles: true }),
     ['terminal', 'files'])
   assert.deepEqual(drawerMenuKeys({ bot: false, room: true, canBrowse: false, canTerminal: false, canFiles: false }), [])

@@ -1,0 +1,8 @@
+{
+  "name": "ds-bot-computer-use",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Shared redaction, approval and planning helpers for DS-Bot computer use. Not an MCP server.",
+  "license": "Apache-2.0"
+}

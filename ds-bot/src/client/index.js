@@ -25,6 +25,7 @@ import { AssistantCell, TriggerCell, TurnProcessCell, Nothing, TurnTailCell, Too
 import { Overlays } from './overlays.js'
 import { createBotBrowsers, serveBrowserReads } from './bot-browsers.js'
 import { BROWSER_CSS } from './browser-pane.js'
+import { VIRTUAL_SCREEN_CSS } from './virtual-screen.js'
 import { SECRET_CSS, SecretDock } from './secret-card.js'
 import { LearningDock, LearningTurnTail, LEARNING_CSS } from './learning-card.js'
 import { MODEL_CSS, ModelChoiceDock, DeepSeekSignIn } from './model-menu.js'
@@ -870,6 +871,7 @@ export function apply(ctx) {
     () => installCompiledStyles(SIDE_CSS, 'side'),
     // Strip and panel styles also serve the side-chat tabs, which need no bridge.
     () => installCompiledStyles(BROWSER_CSS, 'browser'),
+    () => installCompiledStyles(VIRTUAL_SCREEN_CSS, 'screen'),
     () => installFrameWatch(frame),
     () => installFrameSync(),
     () => installTheme(),

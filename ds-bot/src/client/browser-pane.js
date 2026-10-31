@@ -17,6 +17,7 @@ import { panelHasStrip, sideChatsOf, stripMenuKeys } from './side-model.js'
 import { DotsIcon, FolderIcon, SideIcon, TerminalIcon } from './icons.js'
 import { t } from './i18n.js'
 import { rectsOverlap } from './browser-overlap.js'
+import { VirtualScreenView } from './virtual-screen-view.js'
 
 export const PANEL_LINGER_MS = 300
 const WIDTH_KEY = STORAGE.browserWidth
@@ -51,6 +52,7 @@ const LockIcon = icon(['M6.5 9V7a3.5 3.5 0 0 1 7 0v2', 'M5.5 9h9v7h-9z'])
 const ImportIcon = icon(['M10 3.5v8.5', 'M6 8.5l4 4 4-4', 'M4.5 14v1.5a1.5 1.5 0 0 0 1.5 1.5h8a1.5 1.5 0 0 0 1.5-1.5V14'])
 const FileIcon = icon(['M6 3.5h5.5L14.5 6.5v10H6z', 'M11 3.5v3.5h3.5'])
 const WindowIcon = icon(['M4 5h12v9.5H4z', 'M4 7.5h12'])
+const ScreenIcon = icon(['M3.5 4.5h13v8.5h-13z', 'M7 16.5h6', 'M10 13v3.5'])
 
 /** A page's favicon, or the globe while there is none or it fails to load. */
 export function Favicon({ src, className }) {
@@ -70,7 +72,8 @@ const savedWidth = () => {
 // `room` is what the panel and the conversation share: the viewport minus the
 // left column's footprint (frame-layout.js). The panel never takes the last
 // MIN_CHAT px of it; below that it covers the conversation instead.
-const widthRange = (view, room) => (view === 'browser'
+const wideView = view => view === 'browser' || view === 'screen'
+const widthRange = (view, room) => (wideView(view)
   ? [MIN_WIDTH, room - MIN_CHAT]
   : [DETAILS_WIDTH, Math.min(DETAILS_MAX, room - MIN_CHAT)])
 const fitWidth = (width, [low, high]) => Math.round(Math.max(low, Math.min(width, high)))
@@ -120,6 +123,7 @@ export function menuItemFor(key, actions, subject) {
   switch (key) {
     case 'browser': return { key, icon: GlobeIcon, label: t('Browser'), onPick: report(() => actions.openBrowser(subject)) }
     case 'new-tab': return { key, icon: PlusTabIcon, label: t('New browser tab'), onPick: report(() => actions.browserNewTab(subject)) }
+    case 'screen': return { key, icon: ScreenIcon, label: t('Screen'), onPick: report(() => actions.openScreen(subject)) }
     case 'side': return { key, icon: SideIcon, label: t('Side chat'), onPick: report(() => actions.newSideChat(subject)) }
     case 'terminal': return { key, icon: TerminalIcon, label: t('Terminal'), onPick: report(() => actions.newTerminal()) }
     case 'files': return { key, icon: FolderIcon, label: t('Files'), onPick: report(() => actions.openFiles()) }
@@ -517,7 +521,7 @@ function ImportCard({ flow, page, busy, onApply, onCancel, onCloseAndImport, onD
 
 /**
  * One aside for the Bot's details, browser and side chats. `pane` is
- * `{ id, view: 'details'|'browser'|'side', renaming, tab, side }`; `id` is the
+ * `{ id, view: 'details'|'browser'|'side'|'screen', renaming, tab, side }`; `id` is the
  * Session id the panel follows and `side` the open chat's id. Without the
  * Desktop bridge the browser view never shows; side chats need no bridge.
  */
@@ -526,7 +530,7 @@ export function BotPanel({ pane, leaving, room, overlay, roster, actions, useSes
   const canBrowse = Boolean(bot && roster.browser === true && actions.browserShow)
   const sideChats = bot ? sideChatsOf(roster, bot.id) : []
   const sideChat = sideChats.find(chat => chat?.id === pane.side)
-  const view = pane.view === 'browser' && canBrowse ? 'browser' : pane.view === 'side' && sideChat !== undefined ? 'side' : 'details'
+  const view = pane.view === 'browser' && canBrowse ? 'browser' : pane.view === 'side' && sideChat !== undefined ? 'side' : pane.view === 'screen' && bot ? 'screen' : 'details'
   const tabState = useBrowserTabs(map => (bot ? (map[bot.id] ?? EMPTY_TABS) : EMPTY_TABS))
   const active = tabState.active
   const page = useBrowserPages(pages => (active ? pages[active] : null) ?? EMPTY_PAGE)
@@ -542,9 +546,9 @@ export function BotPanel({ pane, leaving, room, overlay, roster, actions, useSes
   const instant = dragging || resizing
   const [reading, setReading] = useState(false)
 
-  const panelWidth = fitWidth(width ?? (view === 'browser' ? DEFAULT_WIDTH : DETAILS_WIDTH), widthRange(view, room))
+  const panelWidth = fitWidth(width ?? (wideView(view) ? DEFAULT_WIDTH : DETAILS_WIDTH), widthRange(view, room))
   // Once the browser has shown, the Bot page keeps its width (up to DETAILS_MAX).
-  useLayoutEffect(() => { if (view === 'browser' && width === null) setWidth(DEFAULT_WIDTH) }, [view, width])
+  useLayoutEffect(() => { if (wideView(view) && width === null) setWidth(DEFAULT_WIDTH) }, [view, width])
   useLayoutEffect(() => { chatRoom.hold(instant) }, [instant])
   // A view switch that changes the width holds the guest back and pins both views to
   // the final width until the panel edge has settled. It is set while rendering, so the
@@ -717,7 +721,7 @@ export function BotPanel({ pane, leaving, room, overlay, roster, actions, useSes
   const hasStrip = panelHasStrip(canBrowse, tabState.ids.length, sideChats.length)
   return h('aside', {
     ref: root, className: 'bt-panel', 'data-view': view,
-    'aria-label': view === 'browser' && bot ? t("{name}'s browser", { name: bot.name }) : view === 'side' ? t('Side chat') : t('Conversation details'),
+    'aria-label': view === 'browser' && bot ? t("{name}'s browser", { name: bot.name }) : view === 'screen' && bot ? t("{name}'s screen", { name: bot.name }) : view === 'side' ? t('Side chat') : t('Conversation details'),
     'data-leaving': leaving || undefined, 'aria-hidden': leaving || undefined, 'data-settling': settling || undefined,
     'data-instant': instant || undefined, 'data-dragging': dragging || undefined, 'data-overlay': overlay || undefined, style: { '--bt-panel-w': `${panelWidth}px` },
     onAnimationEnd: (event) => { if (event.target === event.currentTarget) setLanded(true) },
@@ -729,9 +733,11 @@ export function BotPanel({ pane, leaving, room, overlay, roster, actions, useSes
     hasStrip ? h(PanelStrip, { bot, subject: pane.id, view, ids: tabState.ids, active, sides: sideChats, side: pane.side, canBrowse, reading, onView: switchView, actions: panelActions, useBrowserPages }) : null,
     view === 'browser' && bot
       ? h(BrowserView, { key: `browser:${active}`, bot, tabId: active, leaving, landed: landed && !settling, actions, useBrowserPages, hold })
-      : view === 'side' && sideChat
-        ? h('div', { key: `side:${sideChat.id}`, className: 'bt-panel-view' }, h(SideChatView, { subject: pane.id, chat: sideChat, actions: panelActions }))
-        : h('div', { key: `details:${pane.id}:${pane.renaming ? 'rename' : ''}:${pane.tab ?? ''}`, className: 'bt-panel-view' },
+      : view === 'screen' && bot
+        ? h(VirtualScreenView, { key: `screen:${bot.id}`, bot, onDetails: () => switchView('details') })
+        : view === 'side' && sideChat
+          ? h('div', { key: `side:${sideChat.id}`, className: 'bt-panel-view' }, h(SideChatView, { subject: pane.id, chat: sideChat, actions: panelActions }))
+          : h('div', { key: `details:${pane.id}:${pane.renaming ? 'rename' : ''}:${pane.tab ?? ''}`, className: 'bt-panel-view' },
             h(DetailsDrawer, {
               sessionId: pane.id, startRenaming: pane.renaming, startTab: pane.tab, hasStrip,
               roster, actions: panelActions, useSessions, useSessionStatus, useActivity, useWork, useBrowserTabs, useBrowserPages,

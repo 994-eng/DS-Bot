@@ -131,8 +131,8 @@ const menuItem = (node, key) => {
   return [...(button?.children.flat(Infinity).find(child => child?.props?.items)?.props?.items ?? [])].find(item => item.key === key)
 }
 
-test('the drawer `···` lists browser, a side chat, and the column tabs', () => {
-  const picks = { openBrowser: 0, newSideChat: 0, newTerminal: 0, openFiles: 0 }
+test('the drawer `···` lists browser, a screen, a side chat, and the column tabs', () => {
+  const picks = { openBrowser: 0, openScreen: 0, newSideChat: 0, newTerminal: 0, openFiles: 0 }
   const actions = {
     ...Object.fromEntries(Object.keys(picks).map(name => [name, () => { picks[name] += 1 }])),
     canOpenTerminal: () => true,
@@ -140,16 +140,16 @@ test('the drawer `···` lists browser, a side chat, and the column tabs', () =
   }
   const browseRoster = { ...roster, browser: true }
   const withBrowser = drawer('a', actions, browseRoster)
-  assert.deepEqual(menuKeys(withBrowser), ['browser', 'side', 'sep', 'terminal', 'files'])
-  for (const key of ['browser', 'side', 'terminal', 'files']) {
-    const action = { browser: 'openBrowser', side: 'newSideChat', terminal: 'newTerminal', files: 'openFiles' }[key]
+  assert.deepEqual(menuKeys(withBrowser), ['browser', 'screen', 'side', 'sep', 'terminal', 'files'])
+  for (const key of ['browser', 'screen', 'side', 'terminal', 'files']) {
+    const action = { browser: 'openBrowser', screen: 'openScreen', side: 'newSideChat', terminal: 'newTerminal', files: 'openFiles' }[key]
     menuItem(withBrowser, key).onPick()
     assert.equal(picks[action], 1, `${key} runs ${action}`)
   }
 })
 
-test('a bot in a window without a browser still gets Side chat in the `···`', () => {
-  assert.deepEqual(menuKeys(drawer('a', {})), ['side'])
+test('a bot in a window without a browser still gets Screen and Side chat in the `···`', () => {
+  assert.deepEqual(menuKeys(drawer('a', {})), ['screen', 'side'])
 })
 
 test('a group keeps only the column tabs, and nothing when they are absent', () => {

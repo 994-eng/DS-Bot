@@ -13,6 +13,15 @@ English | [中文](README.zh.md)
 
 DS Bot is a bot plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH). It turns DSH into bots. You create your own bots, then talk and work with them.
 
+This repository is the [994-eng/DS-Bot](https://github.com/994-eng/DS-Bot) fork of [Fei2411/DS-Bot](https://github.com/Fei2411/DS-Bot). It keeps that project's Apache 2.0 license, copyright and disclaimer: DS Bot is not an official DeepSeek product. The fork's own aim is a desktop client closer to Grok Bot and Groupbot. Four extensions carry that, and none of them patch DeepSeek Harness:
+
+- **Linux desktop.** Agents drive a graphical session through [Cua spacesd](https://cua.ai/docs/cua-sdk/guides/spacesd) (gRPC on port 3211): screenshots, mouse, keyboard, windows, accessibility. See [`extensions/linux-desktop/`](extensions/linux-desktop/).
+- **Agent browser.** [ego(lite)](https://github.com/citrolabs/ego-lite) gives each Bot a Task Space in one Chromium. DevTools and a redacted network log go through CDP. Playwright remains the fallback and the desktop app's existing browser bridge. See [`extensions/windows-browser/`](extensions/windows-browser/).
+- **Virtual screens.** The right-hand column can show the selected Bot's screen. One machine and one shared data directory; the screens stay separate.
+- **Cloud desktop.** A Linux GUI you run on a server, viewed in the Cua viewer or over noVNC, driven by the same spacesd. See [`extensions/cloud-desktop/`](extensions/cloud-desktop/).
+
+The layout is described in [docs/architecture.md](docs/architecture.md). The extensions are optional. The plugin and the desktop app behave as before until you open a Bot's screen or point the host at a spacesd.
+
 ![Say one sentence to Chief, and it sets up the bots and the group chat](docs/images/team.png)
 
 ## Install

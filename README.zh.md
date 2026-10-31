@@ -13,6 +13,15 @@
 
 DS Bot 是一个基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（简称 dsh）的 bot 插件，插件将 dsh 改造为 bot 形式。你可以与自己创建的 bot 交流、工作。
 
+这个仓库是 [Fei2411/DS-Bot](https://github.com/Fei2411/DS-Bot) 的 [994-eng/DS-Bot](https://github.com/994-eng/DS-Bot) fork。它保留原项目的 Apache 2.0 许可、版权和声明：DS Bot 不是 DeepSeek 的官方产品。这个 fork 想把桌面客户端做得更接近 Grok Bot 和 Groupbot。四块扩展承担这件事，都不改 DeepSeek Harness：
+
+- **Linux 桌面。** Agent 通过 [Cua spacesd](https://cua.ai/docs/cua-sdk/guides/spacesd)（3211 端口的 gRPC）操作图形会话：截图、鼠标、键盘、窗口、无障碍树。见 [`extensions/linux-desktop/`](extensions/linux-desktop/)。
+- **Agent 浏览器。** [ego(lite)](https://github.com/citrolabs/ego-lite) 让每个 Bot 在同一个 Chromium 里有自己的 Task Space。开发者工具和打码后的网络记录走 CDP。Playwright 仍是退路，也仍是桌面应用里现有的浏览器桥。见 [`extensions/windows-browser/`](extensions/windows-browser/)。
+- **虚拟屏幕。** 右侧栏可以显示当前 Bot 的屏幕。一台机器、一份共享数据；屏幕彼此分开。
+- **云端桌面。** 在你自己的服务器上跑一台 Linux 图形桌面，用 Cua 的查看器或 noVNC 看，仍由同一个 spacesd 驱动。见 [`extensions/cloud-desktop/`](extensions/cloud-desktop/)。
+
+结构写在 [docs/architecture.md](docs/architecture.md)。这些扩展是可选的。不打开某个 Bot 的屏幕、也不把宿主指到 spacesd 时，插件和桌面应用跟以前一样。
+
 ![和 Chief 说一句话，它就把 bot 和群聊建好](docs/images/team.zh.png)
 
 ## 安装

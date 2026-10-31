@@ -1,0 +1,8 @@
+{
+  "name": "ds-bot-cloud-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Deployment description for one shared Linux desktop driven by cua-spacesd.",
+  "license": "Apache-2.0"
+}

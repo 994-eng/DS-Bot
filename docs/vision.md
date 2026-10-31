@@ -39,3 +39,15 @@ Both forms run the same `ds-bot` plugin. The point of the app is that DS Bot con
 ## Who sets the direction
 
 The maintainer decides the direction of the product, changes to decided designs, the rules for working together, releases and the architecture. Anyone can do the rest of the work; see [CONTRIBUTING](../CONTRIBUTING.md#how-we-work).
+
+## This fork
+
+The [994-eng/DS-Bot](https://github.com/994-eng/DS-Bot) fork keeps the DS Bot team and adds a desktop that can drive a computer the way Grok Bot and Groupbot do. It is still an independent project under Apache 2.0. It is not a DeepSeek product, and it does not change DeepSeek Harness. The four additions are:
+
+1. **Cua spacesd** is the Linux computer-use substrate. Agents take screenshots and send pointer and keyboard input over gRPC on port 3211. Cua Driver performs the input. See [Architecture](architecture.md) and [`extensions/linux-desktop/`](../extensions/linux-desktop/).
+2. **ego(lite)** is the agent browser: one Chromium process, one Task Space per Bot, CDP when the agent needs DevTools or the network log. Playwright stays the fallback and the existing desktop bridge.
+3. **A virtual screen per Bot.** The right-hand column shows the selected Bot's display. The machine and its files are shared. The screens are not.
+4. **A cloud desktop.** One Linux GUI on a server the user runs (the Cua Linux image, or Xvfb plus spacesd), with the Cua viewer or noVNC. Agents drive it through spacesd.
+
+Team chats and memory still live in DS Bot's own data folder. A cloud desktop is an extra machine the user controls. Its env token never goes in a chat, a capability, or a URL. Detail and the gaps that are still open are in [Architecture](architecture.md).
+

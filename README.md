@@ -33,7 +33,7 @@ cp -a skills/computer-use-desktop skills/desktop-browser-control "$DSH_HOME/skil
 
 ## Windows client
 
-The Windows app does not ask you to log in, register, or enter an email. Install `DeepSeek-Bot-<version>-win-x64.exe` and open it. The window opens the server’s DeepSeek Harness at `http://38.76.188.71:3080`. Chat goes through that server, so the installer does not contain an API key.
+The Windows app does not ask you to log in, register, or enter an email. Install `DeepSeek-Bot-<version>-win-x64.exe` and open it. The window opens the server’s DeepSeek Harness at `http://38.76.188.71:3080`, and the desktop is already on the right. There is no API key in git. A package built with the `MIMO_API_KEY` secret carries that key inside the installer.
 
 | | |
 |---|---|
@@ -41,7 +41,7 @@ The Windows app does not ask you to log in, register, or enter an email. Install
 | Computer (Cua spacesd) | `http://38.76.188.71:3211` |
 | Screen | `http://38.76.188.71:8890/desktop` |
 
-**Screen** is a panel on the right of the window. It loads the desktop page above, follows that page’s ticket redirect, and can be zoomed. Click the picture to type and to use the pointer. The viewer refuses to be framed, so the panel is an Electron view, not an iframe.
+**Screen** is on the right as soon as the window opens. It loads the desktop page above, follows that page’s ticket redirect onto Cua, and can be zoomed. Click the picture to type and to use the pointer. The viewer refuses to be framed, so the panel is an Electron view, not an iframe. Browser work uses the EGO capability. The desktop uses CUA (spacesd). The identity prompt in `docs/harness-identity-prompt.md` is what the plugin tells the model. The skills in `skills/` ship inside the app.
 
 If the page says `dsh web authentication required`, the server printed a connection URL when `dsh web` started. On the Windows machine set `DS_BOT_SERVER` to that full URL and start the app again. Do not commit the URL.
 
@@ -56,7 +56,7 @@ The model route is MiMo, OpenAI-compatible, at `https://mimo.ezlook.top/v1`. Pro
 | `mimo-v2.6-flash` | Default |
 | `mimo-v2.6-pro` | In the model menu |
 
-Set `MIMO_API_KEY` once on the **server** that runs DeepSeek Harness (the process environment, or that machine’s credential store). The Windows installer does not contain the key, and the key is not in this repository. This plugin registers the route under the credential name `MIMO_API_KEY` and does not ask for the key in a provider form. After the server has the key, the model menu on `http://38.76.188.71:3080` lists Flash and Pro.
+The route is registered under the credential name `MIMO_API_KEY`. There is no provider form. The key is not in git. The Windows package step reads the GitHub Actions secret `MIMO_API_KEY` and, when it is set, puts it in the installer. Set that secret on the repository before building if the packaged app should call MiMo itself. The server at `:3080` can hold the same variable for the page the window opens. An empty secret still builds; the route is present and the key is absent.
 
 A Windows rebuild is required before an installed copy picks this up. GitHub Actions uploads `DeepSeek-Bot-win-x64` from the **Desktop app package (Windows)** job. To build on a Windows machine:
 

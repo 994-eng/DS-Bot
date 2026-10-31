@@ -33,7 +33,7 @@ cp -a skills/computer-use-desktop skills/desktop-browser-control "$DSH_HOME/skil
 
 ## Windows 客户端
 
-Windows 应用不会要求登录、注册或填写邮箱。安装 `DeepSeek-Bot-<版本>-win-x64.exe` 后直接打开。窗口打开服务器上的 DeepSeek Harness：`http://38.76.188.71:3080`。对话走这台服务器，安装包里没有 API 密钥。
+Windows 应用不会要求登录、注册或填写邮箱。安装 `DeepSeek-Bot-<版本>-win-x64.exe` 后直接打开。窗口打开服务器上的 DeepSeek Harness：`http://38.76.188.71:3080`，右侧已经是桌面。仓库里没有 API 密钥。用 `MIMO_API_KEY` 这个 secret 打出来的安装包会带上这把密钥。
 
 | | |
 |---|---|
@@ -41,7 +41,7 @@ Windows 应用不会要求登录、注册或填写邮箱。安装 `DeepSeek-Bot-
 | 电脑（Cua spacesd） | `http://38.76.188.71:3211` |
 | 屏幕 | `http://38.76.188.71:8890/desktop` |
 
-**Screen** 在窗口右侧。它打开上面的桌面地址，跟随该页的 ticket 跳转，并且可以缩放。点画面即可输入和使用指针。查看器拒绝被放进 iframe，所以这里用的是 Electron 视图。
+**Screen** 在窗口一打开就在右侧。它打开上面的桌面地址，跟随该页的 ticket 跳转到 Cua，并且可以缩放。点画面即可输入和使用指针。查看器拒绝被放进 iframe，所以这里用的是 Electron 视图。浏览器工作用 EGO。桌面用 CUA（spacesd）。插件告诉模型的话在 `docs/harness-identity-prompt.md`。`skills/` 里的技能会打进应用。
 
 如果页面写着 `dsh web authentication required`，服务器在启动 `dsh web` 时打印过一条连接地址。在 Windows 机器上把 `DS_BOT_SERVER` 设成那条完整地址再打开应用。不要把这条地址提交进仓库。
 
@@ -56,7 +56,7 @@ Windows 应用不会要求登录、注册或填写邮箱。安装 `DeepSeek-Bot-
 | `mimo-v2.6-flash` | 默认 |
 | `mimo-v2.6-pro` | 在模型菜单里 |
 
-在**运行 DeepSeek Harness 的服务器**上设置一次 `MIMO_API_KEY`（进程环境变量，或那台机器的凭据库）。Windows 安装包不含密钥，仓库里也没有。本插件会登记这条路由，凭据名是 `MIMO_API_KEY`，不需要在提供方表单里再填一遍。服务器有了密钥之后，`http://38.76.188.71:3080` 的模型菜单里会出现 Flash 和 Pro。
+路由的凭据名是 `MIMO_API_KEY`。不需要再填提供方表单。密钥不在 git 里。Windows 打包步骤读取 GitHub Actions secret `MIMO_API_KEY`，有值时写进安装包。要让打出来的应用自己调用 MiMo，先在仓库里设置这个 secret。`:3080` 上的服务器也可以用同一个变量。secret 为空也能打包：路由在，密钥不在。
 
 已经装过的副本要换新的 Windows 安装包才会变成这样。GitHub Actions 的 **Desktop app package (Windows)** 会上传名为 `DeepSeek-Bot-win-x64` 的产物。在 Windows 上自己构建：
 

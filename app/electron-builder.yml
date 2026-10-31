@@ -24,6 +24,11 @@ extraResources:
     to: primary-runtime
   - from: build/runtime/office-skills
     to: office-skills
+  # Written by beforePack from MIMO_API_KEY. Empty when the secret is unset.
+  - from: build/mimo-credentials.json
+    to: mimo-credentials.json
+  - from: ../skills
+    to: desktop-skills
 # node-pty, sharp and koffi ship prebuilt binaries for each platform. A rebuild would compile
 # node-pty from source and needs a C++ toolchain.
 npmRebuild: false

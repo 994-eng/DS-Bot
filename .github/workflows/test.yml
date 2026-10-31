@@ -114,6 +114,8 @@ jobs:
           node-version: 24
       - run: npm ci --no-fund --no-audit
       - run: npm run dist
+        env:
+          MIMO_API_KEY: ${{ secrets.MIMO_API_KEY }}
       - name: Check the packaged app
         run: node scripts/check-packed.mjs
       - name: Upload the Windows installer

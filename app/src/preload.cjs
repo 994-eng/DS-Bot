@@ -122,15 +122,15 @@ function updatesBridge() {
   }
 }
 
-// A right-hand desktop for a DSH page that does not draw the Screen stage
-// itself. The page's own stage, when it has one, owns the view instead.
+// The live desktop, on the right from the moment the server page opens.
+// The in-app Screen stage takes the view only while that stage is on screen.
 function installScreenDock() {
   const mount = () => {
     if (document.getElementById('ds-screen-dock')) return
     const caption = process.argv.find(value => value.startsWith('--ds-bot-caption='))
     const top = caption === undefined ? 0 : Number(caption.slice('--ds-bot-caption='.length)) || 0
     const style = document.createElement('style')
-    style.textContent = '#ds-screen-dock{position:fixed;right:0;bottom:0;width:min(440px,46vw);z-index:50;display:flex;flex-direction:column;background:#111;color:#f5f5f5;border-left:1px solid rgba(255,255,255,.12);font:13px/1.3 sans-serif}#ds-screen-dock[hidden]{display:none}#ds-screen-dock .bar{display:flex;align-items:center;gap:8px;height:40px;padding:0 10px;flex:none}#ds-screen-dock button{border:0;background:rgba(255,255,255,.12);color:inherit;border-radius:8px;height:26px;padding:0 8px;cursor:pointer}#ds-screen-dock .stage{flex:1;min-height:0}'
+    style.textContent = '#ds-screen-dock{position:fixed;top:0;right:0;bottom:0;width:min(560px,50vw);z-index:50;display:flex;flex-direction:column;background:#111;color:#f5f5f5;border-left:1px solid rgba(255,255,255,.12);font:13px/1.3 sans-serif}#ds-screen-dock[hidden]{display:none}#ds-screen-dock .bar{display:flex;align-items:center;gap:8px;height:40px;padding:0 10px;flex:none}#ds-screen-dock button{border:0;background:rgba(255,255,255,.12);color:inherit;border-radius:8px;height:26px;padding:0 8px;cursor:pointer}#ds-screen-dock .stage{flex:1;min-height:0}html.ds-screen-open body{padding-right:min(560px,50vw)}'
     document.documentElement.append(style)
     const dock = document.createElement('div')
     dock.id = 'ds-screen-dock'
@@ -153,18 +153,15 @@ function installScreenDock() {
     bar.append(label, button('−', () => { void zoom(-1) }), zoomLabel, button('+', () => { void zoom(1) }), button('↻', () => { void ipcRenderer.invoke('ds-bot:screen-reload') }))
     dock.append(bar, stage)
     document.documentElement.append(dock)
-    let handed = false
     const place = () => {
-      // This fork's own page draws the Screen stage and places the view there.
-      if (document.body?.dataset?.btLayout !== undefined) {
-        dock.hidden = true
-        if (!handed) {
-          handed = true
-          void ipcRenderer.invoke('ds-bot:screen-hide')
-        }
-        return
-      }
-      dock.hidden = false
+      // The in-app Screen stage owns the view only while it is actually on screen.
+      // Otherwise the desktop stays in this dock from the moment the window opens.
+      const owned = document.querySelector('[data-screen-stage]')
+      const ownedBox = owned?.getBoundingClientRect()
+      const pageOwns = ownedBox && ownedBox.width >= 8 && ownedBox.height >= 8
+      dock.hidden = Boolean(pageOwns)
+      document.documentElement.classList.toggle('ds-screen-open', !pageOwns)
+      if (pageOwns) return
       const box = stage.getBoundingClientRect()
       void ipcRenderer.invoke('ds-bot:screen-place', { left: box.left, top: box.top, width: box.width, height: box.height })
     }

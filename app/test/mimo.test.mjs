@@ -3,7 +3,8 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { applyMimoEnv, MIMO_BASE_URL, MIMO_DEFAULT_MODEL, MIMO_MODELS } from '../src/mimo.mjs'
+import { mkdirSync } from 'node:fs'
+import { applyMimoEnv, MIMO_BASE_URL, MIMO_DEFAULT_MODEL, MIMO_MODELS, writePackedCredentials } from '../src/mimo.mjs'
 import { mimoPatchDocument, reconcileMimo } from '../src/mimo-patch.mjs'
 
 test('the MiMo route is the default and the patch has no key', () => {
@@ -36,4 +37,11 @@ test('a key is taken from the environment or a file outside the repo', () => {
   assert.match(patch, /mimo\.ezlook\.top/)
   assert.equal(patch.includes('from-file'), false)
   rmSync(home, { recursive: true, force: true })
+  const pack = mkdtempSync(join(tmpdir(), 'mimo-pack-'))
+  const dest = join(pack, 'mimo-credentials.json')
+  assert.equal(writePackedCredentials({}, { mkdirSync, writeFileSync, dest }), false)
+  assert.equal(readFileSync(dest, 'utf8').includes('pack-key'), false)
+  assert.equal(writePackedCredentials({ MIMO_API_KEY: 'pack-key' }, { mkdirSync, writeFileSync, dest }), true)
+  assert.match(readFileSync(dest, 'utf8'), /pack-key/)
+  rmSync(pack, { recursive: true, force: true })
 })

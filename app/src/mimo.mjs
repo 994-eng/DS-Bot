@@ -1,3 +1,5 @@
+import { dirname } from 'node:path'
+
 // MiMo is the built-in OpenAI-compatible route. The key is never written here:
 // DSH reads the credential MIMO_API_KEY from the environment, and the desktop
 // app copies it from a file outside this repository when the variable is unset.
@@ -21,6 +23,16 @@ export function mimoCredentialPaths(env = process.env, userData) {
 function keyFrom(parsed) {
   const value = typeof parsed?.MIMO_API_KEY === 'string' ? parsed.MIMO_API_KEY : typeof parsed?.apiKey === 'string' ? parsed.apiKey : ''
   return value.trim()
+}
+
+// Writes the pack-time credential file. An empty key writes `{}` so the package
+// still builds. The key is never logged and this file is not committed.
+export function writePackedCredentials(env, { mkdirSync, writeFileSync, dest }) {
+  const key = typeof env.MIMO_API_KEY === 'string' ? env.MIMO_API_KEY.trim() : ''
+  const body = key === '' ? {} : { MIMO_API_KEY: key }
+  mkdirSync(dirname(dest), { recursive: true })
+  writeFileSync(dest, `${JSON.stringify(body)}\n`, { encoding: 'utf8', mode: 0o600 })
+  return key !== ''
 }
 
 // Sets MIMO_API_KEY on `env` when a local file has one and the variable is empty.

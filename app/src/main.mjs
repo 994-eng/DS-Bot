@@ -2,7 +2,7 @@
 // The window loads the Host's loopback address as DSH Web does: DSH's sign-in sends the page's
 // origin as the address the browser comes back to, and accepts only a loopback one.
 import { app, BrowserWindow, WebContentsView, dialog, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, session, shell as electronShell, Tray } from 'electron'
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { readFile, rm } from 'node:fs/promises'
 import { release } from 'node:os'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
@@ -28,6 +28,7 @@ import { UPDATE_TEXT, watchReleases, watchUpdates } from './updates.mjs'
 import { createDeferredPrompt } from './update-prompt.mjs'
 import { applyCloudDefaults } from './cloud-backend.mjs'
 import { isAppServer, serverPage, serverUrl } from './default-server.mjs'
+import { applyMimoEnv, mimoCredentialPaths } from './mimo.mjs'
 import { createDesktopViewer } from './desktop-viewer.mjs'
 import { createScreenPanel } from './screen-panel.mjs'
 import { CAPTION_HEIGHT, cssColor, micaAvailable, nativeThemeSource } from './window-frame.mjs'
@@ -189,13 +190,17 @@ async function start() {
   places = { dataDir: where.dataDir, workspace: where.workspace }
   const port = await hostPort(join(app.getPath('userData'), 'host-port.json'))
   origin = `http://127.0.0.1:${String(port)}`
+  const resources = typeof process.resourcesPath === 'string' ? process.resourcesPath : ''
+  const packedKey = resources === '' ? '' : join(resources, 'mimo-credentials.json')
+  const skillDir = resources === '' ? '' : join(resources, 'desktop-skills')
+  applyMimoEnv(process.env, { readFileSync, paths: [packedKey, ...mimoCredentialPaths(process.env)].filter(path => path !== '') })
   const pnpm = join(app.getAppPath(), 'node_modules', 'pnpm', 'bin', 'pnpm.mjs')
   const profileDir = join(where.dataDir, 'profiles', PROFILE)
   mkdirSync(profileDir, { recursive: true })
   const newHost = () => new HostProcess({
     entry: join(here, 'host.mjs'),
     cwd: profileDir,
-    env: { ...process.env, DSH_HOME: where.dataDir, DS_BOT_PORT: String(port), DS_BOT_APP: '1', DS_BOT_USER_DSH_HOME: userDshHome(), DS_BOT_RUNTIME_DIR: app.isPackaged ? process.resourcesPath : join(here, '..', 'build', 'runtime'), ...(where.workspace ? { DS_BOT_WORKSPACE: where.workspace } : {}) },
+    env: { ...process.env, DSH_HOME: where.dataDir, DS_BOT_PORT: String(port), DS_BOT_APP: '1', DS_BOT_USER_DSH_HOME: userDshHome(), DS_BOT_RUNTIME_DIR: app.isPackaged ? process.resourcesPath : join(here, '..', 'build', 'runtime'), ...(where.workspace ? { DS_BOT_WORKSPACE: where.workspace } : {}), ...(skillDir !== '' && existsSync(skillDir) ? { DS_BOT_DESKTOP_SKILLS: skillDir } : {}) },
     pnpm,
     onFailure: fail,
   })

@@ -7,6 +7,7 @@ node_modules/
 /app/dist-pack/
 /app/dist-next/
 /app/build/runtime/
+/app/build/mimo-credentials.json
 /app/build/runtime-cache/
 
 # A DeepSeek Harness checkout for the tests and the test bench.

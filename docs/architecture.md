@@ -111,7 +111,7 @@ Upstream files under `ds-bot/src/host/browser/` and `app/src/bot-browser.mjs` ar
 
 ## Default machine and the model prompt
 
-The Windows client hardcodes `http://38.76.188.71:3211` and the viewer at `/viewer/` (`app/src/cloud-backend.mjs`). It sets those URLs when they are empty. It does not set a token, and it has no login, registration, or email route.
+The Windows client hardcodes `http://38.76.188.71:3211` and the viewer at `/viewer/` (`app/src/cloud-backend.mjs`). Choosing Screen opens that viewer in its own window (`app/src/desktop-viewer.mjs`). The viewer’s frame policy blocks an iframe, so the panel does not embed it. A token is read from `CUA_ENV_TOKEN` or `CUA_ENV_TOKEN_FILE` and sent only as a request header.
 
 DSH loads [docs/harness-identity-prompt.md](harness-identity-prompt.md) through `ctx.systemPrompt.section` (`fork-environment`, order 630) in `ds-bot/src/host/prompt.js`. GUI work defaults to the visual desktop: a CUA screenshot, an action, then another CUA screenshot. Browser-centric work uses the EGO capability. The plugin does not rewrite a tool call from one into the other.
 

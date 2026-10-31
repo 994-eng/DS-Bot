@@ -40,7 +40,7 @@ The Windows app does not ask you to log in, register, or enter an email. Install
 | Computer (Cua spacesd) | `http://38.76.188.71:3211` |
 | Viewer | `http://38.76.188.71:3211/viewer/` |
 
-Open the viewer in a browser to watch the machine. In the app, open a Bot and choose **Screen** to see that Bot's display. Attach the **cua** capability for desktop control and the **ego** capability for the browser. There is no account step in between.
+Open a Bot and choose **Screen**. The app opens the live desktop in its own window at `http://38.76.188.71:3211/viewer/`. The viewer refuses to be embedded in the panel, so the picture is that window, not an empty frame inside the chat. The panel keeps a one-line note that the screen belongs to that Bot. If the server expects a token, set `CUA_ENV_TOKEN` in the environment or point `CUA_ENV_TOKEN_FILE` at a file outside this repository. The token is not stored here and is not put in the address.
 
 A pull request builds the installer on Windows. The workflow run's artifact is `DeepSeek-Bot-win-x64`. To build it yourself on Windows, from this checkout:
 

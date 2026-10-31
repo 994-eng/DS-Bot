@@ -17,6 +17,14 @@ if (host !== undefined && location.origin === host) {
     browser: browserBridge(),
     // The app's own updater, for the About row's state and buttons.
     updates: updatesBridge(),
+    // The Cua viewer cannot be framed (frame-ancestors 'none'). This opens it
+    // as its own window. The token stays in the main process.
+    desktop: {
+      open: (payload) => ipcRenderer.invoke('ds-bot:open-desktop', {
+        title: typeof payload?.title === 'string' ? payload.title : '',
+        botId: typeof payload?.botId === 'string' ? payload.botId : '',
+      }),
+    },
   })
   const caption = process.argv.find(value => value.startsWith('--ds-bot-caption='))
   if (caption !== undefined) {

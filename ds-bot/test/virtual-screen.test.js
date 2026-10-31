@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createScreenDesk, screenRail } from '../src/client/virtual-screen.js'
+import { createScreenDesk, requestLiveDesktop, screenRail } from '../src/client/virtual-screen.js'
 
 const bots = [
   { id: 'chief', name: 'Chief' },
@@ -12,6 +12,14 @@ test('clicking a Bot selects that Bot’s screen', () => {
   assert.equal(rail.selectedId, 'writer')
   assert.equal(rail.items.find(item => item.selected).screenId, 'screen:writer')
   assert.equal(rail.items.find(item => item.id === 'chief').selected, false)
+})
+
+test('opening the live desktop asks the app for that Bot and sends no token', () => {
+  const calls = []
+  assert.equal(requestLiveDesktop({ open: (payload) => { calls.push(payload) } }, { id: 'chief', name: 'Chief' }), true)
+  assert.deepEqual(calls, [{ botId: 'chief', title: 'Chief' }])
+  assert.equal('token' in calls[0], false)
+  assert.equal(requestLiveDesktop(undefined, { id: 'chief', name: 'Chief' }), false)
 })
 
 test('input stays on the Bot that received it', () => {

@@ -27,6 +27,7 @@ import { createShell, SHELL_TEXT } from './shell.mjs'
 import { UPDATE_TEXT, watchReleases, watchUpdates } from './updates.mjs'
 import { createDeferredPrompt } from './update-prompt.mjs'
 import { applyCloudDefaults } from './cloud-backend.mjs'
+import { createDesktopViewer } from './desktop-viewer.mjs'
 import { CAPTION_HEIGHT, cssColor, micaAvailable, nativeThemeSource } from './window-frame.mjs'
 
 // The packaged client opens the shared desktop with these URLs. No token is set.
@@ -47,6 +48,7 @@ const IPC = {
   appUpdateState: 'ds-bot:app-update-state', appUpdateCheck: 'ds-bot:app-update-check',
   appUpdateInstall: 'ds-bot:app-update-install', appUpdateOpen: 'ds-bot:app-update-open',
   appUpdateChanged: 'ds-bot:app-update-changed',
+  openDesktop: 'ds-bot:open-desktop',
 }
 // A cookie export larger than this is not a cookie export.
 const IMPORT_FILE_MAX = 32 * 1024 * 1024
@@ -228,6 +230,12 @@ async function start() {
   ready.catch(fail)
   // A throwaway run (DS_BOT_HOME) keeps its folders where it was told.
   const fixed = Boolean(process.env.DS_BOT_HOME)
+  const desktopViewer = createDesktopViewer({ BrowserWindow, getParent: () => mainWindow })
+  ipcMain.handle(IPC.openDesktop, (event, payload) => {
+    assertWindow(event)
+    const title = typeof payload?.title === 'string' ? payload.title : ''
+    return desktopViewer.open({ title })
+  })
   ipcMain.handle(IPC.dataLocation, (event) => {
     assertWindow(event)
     return { path: places.dataDir, fixed }

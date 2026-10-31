@@ -1,5 +1,6 @@
 import { countCards, heldCardKey } from './sources.js'
 import { noteClientError } from './diagnostics.js'
+import { requestLiveDesktop } from './virtual-screen.js'
 
 // The actions every window that draws the Bot views shares: dialogs and panels (the `ui`
 // source), requests to the host, and the notes the transcript keeps. The shell around the
@@ -65,6 +66,9 @@ export function teamActions({ call, after, partFor, roster, ui, live, cards, hel
     // screen view, so the column shows that Bot's display.
     openScreen: (sessionId) => {
       ui.set(state => ({ ...state, details: sessionId ?? state.details, view: 'screen', renaming: false, tab: null, panelYield: yieldTo(state, 'screen') }))
+      const snap = roster.getSnapshot?.()
+      const bot = snap?.byId?.[sessionId]
+      requestLiveDesktop(globalThis.dsBotApp?.desktop, bot ?? { id: sessionId, name: '' })
     },
     // A side chat on the panel's own view, opened from the strip, the `···`
     // menus or `/side`. Closing the panel keeps the chats; only a tab's × deletes.

@@ -5,6 +5,13 @@ export function screenIdFor(botId) {
   return `screen:${botId}`
 }
 
+// The panel cannot frame the Cua viewer. Ask the desktop app to open it.
+export function requestLiveDesktop(desktop, bot) {
+  if (typeof desktop?.open !== 'function') return false
+  void desktop.open({ botId: bot?.id ?? '', title: bot?.name ?? '' })
+  return true
+}
+
 export function screenRail(bots, selectedId) {
   const items = bots.map(bot => ({
     id: bot.id ?? bot.botId,

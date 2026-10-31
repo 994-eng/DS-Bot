@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createScreenPanel, desktopNavigationAllowed, desktopPage, navigationDecision, pageSaysExpired, stepZoom } from '../src/screen-panel.mjs'
+import { createScreenPanel, desktopNavigationAllowed, desktopPage, desktopWatchScript, navigationDecision, pageSaysExpired, stepZoom } from '../src/screen-panel.mjs'
 
 function fakeView() {
   const views = []
@@ -71,7 +71,14 @@ test('an expired viewer ticket reloads the desktop page instead of the old ticke
   assert.equal(navigationDecision(stale, { expectViewer: true }), 'allow')
   assert.equal(navigationDecision(stale, { expectViewer: false }), 'refresh')
   assert.equal(pageSaysExpired('This viewer link has expired or is not valid.\nReconnect'), true)
+  assert.equal(pageSaysExpired('Reconnect'), false)
   assert.equal(pageSaysExpired('Ubuntu desktop'), false)
+  const watch = desktopWatchScript(page)
+  assert.match(watch, /location\.replace/)
+  assert.match(watch, /http:\/\/38\.76\.188\.71:8890\/desktop/)
+  assert.match(watch, /expired\|not valid/)
+  assert.match(watch, /reconnect/i)
+  assert.equal(watch.includes('ticket='), false)
   const handlers = {}
   let body = 'Ubuntu desktop'
   const statuses = []
@@ -82,8 +89,12 @@ test('an expired viewer ticket reloads the desktop page instead of the old ticke
       this.visible = false
       this.webContents = {
         url: '',
-        loadURL(url) { this.url = url; return Promise.resolve() },
-        executeJavaScript: async () => body,
+        headers: '',
+        loadURL(url, options) { this.url = url; this.headers = options?.extraHeaders ?? ''; return Promise.resolve() },
+        executeJavaScript: async (code) => {
+          if (String(code).includes('location.replace')) return undefined
+          return body
+        },
         on(name, fn) { (handlers[name] ??= []).push(fn) },
         setZoomFactor() {},
         setWindowOpenHandler() {},
@@ -102,6 +113,7 @@ test('an expired viewer ticket reloads the desktop page instead of the old ticke
   panel.place({ left: 0, top: 80, width: 240, height: 140 })
   const web = made[0].webContents
   assert.equal(web.url, page)
+  assert.match(web.headers, /no-cache/)
   await handlers['did-finish-load'][0]()
   assert.equal(statuses.at(-1), 'live')
   const event = { prevented: false, preventDefault() { this.prevented = true } }

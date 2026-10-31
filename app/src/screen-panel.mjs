@@ -74,7 +74,41 @@ export function navigationDecision(target, { expectViewer = false, page = DESKTO
 }
 
 export function pageSaysExpired(text) {
-  return /expired|not valid|reconnect|已过期|无效/iu.test(String(text ?? ''))
+  return /expired|not valid|已过期|无效/iu.test(String(text ?? ''))
+}
+
+// Runs inside the viewer page. An expired ticket, or Reconnect, goes to the
+// desktop address. The ticket URL is never stored or opened again.
+export function desktopWatchScript(page) {
+  const fresh = JSON.stringify(page)
+  return `(() => {
+    const fresh = ${fresh};
+    const go = () => {
+      const last = Number(sessionStorage.getItem('ds-desktop-fresh') || 0);
+      if (Date.now() - last < 1500) return;
+      sessionStorage.setItem('ds-desktop-fresh', String(Date.now()));
+      if (location.href.split('#')[0] !== fresh) location.replace(fresh);
+    };
+    const bad = () => /expired|not valid/i.test(document.body ? document.body.innerText : '');
+    const arm = () => {
+      if (bad()) { go(); return; }
+      for (const el of document.querySelectorAll('button, a, input[type="button"]')) {
+        const label = el.innerText || el.value || el.getAttribute('aria-label') || '';
+        if (!/reconnect/i.test(label) || el.dataset.dsFresh === '1') continue;
+        el.dataset.dsFresh = '1';
+        el.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          go();
+        }, true);
+      }
+    };
+    arm();
+    if (!window.__dsDesktopWatch) {
+      window.__dsDesktopWatch = new MutationObserver(arm);
+      window.__dsDesktopWatch.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+    }
+  })()`
 }
 
 export const TICKET_REFRESH_MS = 12 * 60 * 1000
@@ -99,6 +133,7 @@ export function createScreenPanel({ WebContentsView, getWindow, env = process.en
   let expectViewer = false
   let refreshing = false
   let loadedAt = 0
+  let expiredLoads = 0
   let timer
   const page = desktopPage(env)
 
@@ -106,32 +141,45 @@ export function createScreenPanel({ WebContentsView, getWindow, env = process.en
     return view?.webContents
   }
 
-  function loadFresh() {
+  function loadFresh({ force = false } = {}) {
     const web = contents()
     if (!web) return false
+    if (force) {
+      expiredLoads += 1
+      if (expiredLoads > 3) {
+        refreshing = false
+        onStatus({ state: 'expired', page })
+        return false
+      }
+    } else if (refreshing && now() - loadedAt < 1500) return false
     expectViewer = true
     refreshing = true
     loaded = true
     loadedAt = now()
     onStatus({ state: 'refreshing', page })
-    void web.loadURL(page)
+    void web.session?.clearCache?.()
+    // Always this address. A ticket URL is never the one we load or cache.
+    void web.loadURL(page, { extraHeaders: 'Cache-Control: no-cache\r\nPragma: no-cache\r\n' })
     return true
+  }
+
+  function injectWatch(web) {
+    if (typeof web?.executeJavaScript !== 'function') return
+    void web.executeJavaScript(desktopWatchScript(page), true).catch(() => {})
   }
 
   async function noteLoad() {
     const web = contents()
     expectViewer = false
+    injectWatch(web)
     let text = ''
     try { text = await web?.executeJavaScript?.('document.body ? document.body.innerText.slice(0, 800) : ""', true) } catch { text = '' }
     if (pageSaysExpired(text)) {
-      if (refreshing) {
-        refreshing = false
-        onStatus({ state: 'expired', page })
-        return
-      }
-      loadFresh()
+      onStatus({ state: 'expired', page })
+      loadFresh({ force: true })
       return
     }
+    expiredLoads = 0
     refreshing = false
     onStatus({ state: 'live', page })
   }
@@ -153,13 +201,18 @@ export function createScreenPanel({ WebContentsView, getWindow, env = process.en
     }
     if (!view) {
       view = new WebContentsView({
-        webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, webviewTag: false },
+        webPreferences: {
+          // In-memory session: a ticket URL is not restored from disk.
+          partition: 'desktop-live',
+          sandbox: true, contextIsolation: true, nodeIntegration: false, webviewTag: false,
+        },
       })
       window.contentView.addChildView(view)
       parent = window
       const web = contents()
       web?.on?.('will-navigate', onNavigate)
       web?.on?.('will-redirect', onNavigate)
+      web?.on?.('dom-ready', () => { injectWatch(web) })
       web?.on?.('did-finish-load', () => { void noteLoad() })
       web?.setWindowOpenHandler?.(() => ({ action: 'deny' }))
     }

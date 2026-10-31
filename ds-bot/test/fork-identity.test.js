@@ -5,9 +5,14 @@ import { install } from '../src/host/prompt.js'
 import { FORK_CAPABILITIES, FORK_IDENTITY_PROMPT } from '../src/host/fork-identity.js'
 import { fakeContext } from './fake-ctx.js'
 
+function lf(text) {
+  return text.replace(/\r\n/g, '\n')
+}
+
 test('the identity prompt matches the doc and names EGO and CUA', () => {
-  const doc = readFileSync(new URL('../../docs/harness-identity-prompt.md', import.meta.url), 'utf8')
-  assert.equal(FORK_IDENTITY_PROMPT, doc)
+  // Windows checkout can rewrite the doc to CRLF. The words are what must match.
+  const doc = lf(readFileSync(new URL('../../docs/harness-identity-prompt.md', import.meta.url), 'utf8'))
+  assert.equal(lf(FORK_IDENTITY_PROMPT), doc)
   assert.match(FORK_IDENTITY_PROMPT, /EGO capability/)
   assert.match(FORK_IDENTITY_PROMPT, /CUA capability/)
   assert.match(FORK_IDENTITY_PROMPT, /spacesd/)

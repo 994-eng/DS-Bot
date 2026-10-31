@@ -20,7 +20,16 @@ This repository is the [994-eng/DS-Bot](https://github.com/994-eng/DS-Bot) fork 
 - **Virtual screens.** The right-hand column can show the selected Bot's screen. One machine and one shared data directory; the screens stay separate.
 - **Cloud desktop.** A Linux GUI you run on a server, viewed in the Cua viewer or over noVNC, driven by the same spacesd. See [`extensions/cloud-desktop/`](extensions/cloud-desktop/).
 
-The layout is described in [docs/architecture.md](docs/architecture.md). The model is told which capability to call in [docs/harness-identity-prompt.md](docs/harness-identity-prompt.md). Browser work is the EGO capability. Desktop screenshots, mouse, and keyboard are the CUA capability. Nothing in the plugin remaps one tool call into the other.
+The layout is described in [docs/architecture.md](docs/architecture.md). The model is told which capability to call in [docs/harness-identity-prompt.md](docs/harness-identity-prompt.md). A GUI task starts on the visual desktop: CUA screenshot, act, CUA screenshot again. Browser work is the EGO capability. Nothing in the plugin remaps one tool call into the other.
+
+Skills for that loop live in [`skills/`](skills/). DeepSeek Harness loads a `SKILL.md` folder from `$DSH_HOME/skills` (the desktop app’s own data folder). Copy them on the server:
+
+```sh
+mkdir -p "$DSH_HOME/skills"
+cp -a skills/computer-use-desktop skills/desktop-browser-control "$DSH_HOME/skills/"
+```
+
+[`vendor/lightvela-computer-use/`](vendor/lightvela-computer-use/) is a reference copy of the LightVela/Hermes computer-use modules. DS-Bot does not run Hermes.
 
 ## Windows client
 

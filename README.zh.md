@@ -20,7 +20,16 @@ DS Bot 是一个基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepsee
 - **虚拟屏幕。** 右侧栏可以显示当前 Bot 的屏幕。一台机器、一份共享数据；屏幕彼此分开。
 - **云端桌面。** 在你自己的服务器上跑一台 Linux 图形桌面，用 Cua 的查看器或 noVNC 看，仍由同一个 spacesd 驱动。见 [`extensions/cloud-desktop/`](extensions/cloud-desktop/)。
 
-结构写在 [docs/architecture.md](docs/architecture.md)。模型该用哪一项能力，写在 [docs/harness-identity-prompt.md](docs/harness-identity-prompt.md)。浏览器走 EGO 能力。桌面截图、鼠标和键盘走 CUA 能力。插件里没有把一种工具调用改写成另一种的代码。
+结构写在 [docs/architecture.md](docs/architecture.md)。模型该用哪一项能力，写在 [docs/harness-identity-prompt.md](docs/harness-identity-prompt.md)。图形界面默认走看得见的桌面：CUA 截图、操作、再截图核对。浏览器走 EGO 能力。插件里没有把一种工具调用改写成另一种的代码。
+
+这些步骤的技能在 [`skills/`](skills/)。DeepSeek Harness 从 `$DSH_HOME/skills` 读取带 `SKILL.md` 的目录（桌面应用用它自己的数据目录）。在服务器上复制：
+
+```sh
+mkdir -p "$DSH_HOME/skills"
+cp -a skills/computer-use-desktop skills/desktop-browser-control "$DSH_HOME/skills/"
+```
+
+[`vendor/lightvela-computer-use/`](vendor/lightvela-computer-use/) 是 LightVela/Hermes 电脑操作代码的参考副本。DS-Bot 不运行 Hermes。
 
 ## Windows 客户端
 

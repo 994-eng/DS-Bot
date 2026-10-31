@@ -113,7 +113,22 @@ Upstream files under `ds-bot/src/host/browser/` and `app/src/bot-browser.mjs` ar
 
 The Windows client hardcodes `http://38.76.188.71:3211` and the viewer at `/viewer/` (`app/src/cloud-backend.mjs`). It sets those URLs when they are empty. It does not set a token, and it has no login, registration, or email route.
 
-DSH loads [docs/harness-identity-prompt.md](harness-identity-prompt.md) through `ctx.systemPrompt.section` (`fork-environment`, order 630) in `ds-bot/src/host/prompt.js`. The section tells the model to call the EGO capability for the browser and the CUA capability for screenshots, mouse, and keyboard. The plugin does not rewrite a tool call from one into the other.
+DSH loads [docs/harness-identity-prompt.md](harness-identity-prompt.md) through `ctx.systemPrompt.section` (`fork-environment`, order 630) in `ds-bot/src/host/prompt.js`. GUI work defaults to the visual desktop: a CUA screenshot, an action, then another CUA screenshot. Browser-centric work uses the EGO capability. The plugin does not rewrite a tool call from one into the other.
+
+## Skills
+
+DSH’s filesystem skill provider reads one level of `SKILL.md` bundles from these roots, in rank order: `<project>/.dsh/skills`, `<project>/.agents/skills`, custom dirs, `<DSH_HOME>/skills` (default `~/.dsh/skills`), and `<agents home>/skills`. The desktop app’s `DSH_HOME` is its own data folder, not `~/.dsh`.
+
+This fork’s skills are `skills/computer-use-desktop/` and `skills/desktop-browser-control/`. On the server:
+
+```sh
+mkdir -p "$DSH_HOME/skills"
+cp -a skills/computer-use-desktop skills/desktop-browser-control "$DSH_HOME/skills/"
+```
+
+The plugin also registers that `skills/` directory when it sits next to `ds-bot/` (or when `DS_BOT_DESKTOP_SKILLS` points at it), through `ctx.skills.registerProvider` in `ds-bot/src/host/desktop-skills.js`. The model loads a skill with the harness `skill` tool.
+
+`vendor/lightvela-computer-use/` is the LightVela/Hermes computer-use reference (Cua driver session, one Xfce screen per profile). DS-Bot does not execute it. The live desktop remains cua-spacesd.
 
 CI does not connect to `38.76.188.71`. A test can check the host string, the missing login routes, and the prompt text. A live screenshot, a real spacesd RPC, and an ego Task Space on that machine need the server and are outside CI.
 

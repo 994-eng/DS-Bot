@@ -7,7 +7,7 @@ description: Open and drive web pages with the EGO capability in Google Chrome o
 
 EGO is the browser. CUA is the desktop. Do not swap them.
 
-Google Chrome is installed on the server virtual desktop at `http://38.76.188.71:3211`. The app shows that desktop at `http://38.76.188.71:8890/desktop`. Every page you open must appear in Chrome on that screen. Do not use a headless browser, an off-screen profile, or a browser the user cannot see in the sidebar.
+Google Chrome is installed on the server virtual desktop at `http://38.76.188.71:3211`. The app draws that desktop from spacesd directly. Every page you open must appear in Chrome on that screen. Do not use a headless browser, an off-screen profile, or a browser the user cannot see in the sidebar.
 
 ## When to use
 

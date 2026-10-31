@@ -783,6 +783,8 @@ const ZH = {
   Computer: '电脑',
   Knowledge: '资料库',
   'Refreshing the desktop…': '正在刷新桌面…',
+  'Set CUA_ENV_TOKEN on this computer.': '在这台电脑上设置 CUA_ENV_TOKEN。',
+  'Desktop unavailable': '桌面暂时不可用',
   "{name}'s screen": '{name} 的屏幕',
   'Virtual screen': '虚拟屏幕',
   'This Bot has its own screen. Other Bots cannot see or type on it.': '这个 Bot 有自己的屏幕。其他 Bot 看不到，也不能在上面操作。',

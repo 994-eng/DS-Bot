@@ -832,6 +832,8 @@ var ZH = {
   Computer: "电脑",
   Knowledge: "资料库",
   "Refreshing the desktop…": "正在刷新桌面…",
+  "Set CUA_ENV_TOKEN on this computer.": "在这台电脑上设置 CUA_ENV_TOKEN。",
+  "Desktop unavailable": "桌面暂时不可用",
   "{name}'s screen": "{name} 的屏幕",
   "Virtual screen": "虚拟屏幕",
   "This Bot has its own screen. Other Bots cannot see or type on it.": "这个 Bot 有自己的屏幕。其他 Bot 看不到，也不能在上面操作。",
@@ -1584,7 +1586,7 @@ function screenIdFor(botId) {
 }
 function embeddedScreen() {
   const screen = globalThis.dsBotApp?.screen;
-  return typeof screen?.place === "function" ? screen : null;
+  return typeof screen?.subscribe === "function" ? screen : null;
 }
 function requestLiveDesktop(desktop, bot) {
   if (embeddedScreen()) return true;
@@ -1649,10 +1651,10 @@ var VIRTUAL_SCREEN_CSS = `
 .bt-screen-tabs button[aria-selected=true]{color:var(--bt-ink);box-shadow:inset 0 -2px 0 var(--bt-ink)}
 .bt-screen-zoom{display:flex;gap:6px;align-items:center}
 .bt-screen-card{margin:16px;width:min(100%,280px);border:1px solid var(--bt-line);border-radius:12px;overflow:hidden;background:var(--bt-card)}
-.bt-screen-thumb{display:block;width:100%;height:158px;border:0;padding:0;background:#111;cursor:pointer}
+.bt-screen-thumb{display:block;width:100%;height:158px;border:0;padding:0;background:#111;cursor:pointer;object-fit:contain}
 .bt-screen-cap{padding:8px 10px;font-size:12px;color:var(--bt-ink-2)}
 .bt-screen-overlay{position:fixed;left:24px;right:24px;bottom:24px;top:48px;z-index:70;display:flex;flex-direction:column;background:#111;border-radius:12px;overflow:hidden}
-.bt-screen-stage{flex:1;min-height:0;background:#111}
+.bt-screen-stage{flex:1;min-height:360px;width:100%;background:#111}
 .bt-screen-empty{color:var(--bt-ink-2);font-size:13px;max-width:260px}
 .bt-screen-empty strong{display:block;color:var(--bt-ink);font-size:15px;font-weight:600;margin-bottom:6px}
 .bt-screen-note{color:var(--bt-ink-3);font-size:12px}
@@ -17805,49 +17807,51 @@ function VirtualScreenView({ bot, onDetails, onLibrary, onBrowser }) {
   const screen = embeddedScreen();
   const desktop = screen ? null : liveDesktop();
   const [open, setOpen] = (0, import_react48.useState)(false);
-  const [zoom, setZoom] = (0, import_react48.useState)(1);
   const [status, setStatus] = (0, import_react48.useState)("");
-  (0, import_react48.useLayoutEffect)(() => {
-    const node = open ? stage.current : thumb.current;
-    if (!node || !screen) return void 0;
-    const place = () => {
-      const box = node.getBoundingClientRect();
-      void screen.place({ left: box.left, top: box.top, width: box.width, height: box.height });
-    };
-    place();
-    const observer = new ResizeObserver(place);
-    observer.observe(node);
-    window.addEventListener("resize", place);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", place);
-    };
-  }, [bot?.id, open, screen]);
+  const frame = (0, import_react48.useRef)(null);
   (0, import_react48.useEffect)(() => {
     if (!screen) return void 0;
+    void screen.show?.();
+    const draw = (canvas, next) => {
+      if (!canvas || next?.state !== "frame" || typeof next.image !== "string") return;
+      const image = new Image();
+      image.onload = () => {
+        canvas.width = next.width || image.naturalWidth;
+        canvas.height = next.height || image.naturalHeight;
+        canvas.getContext("2d")?.drawImage(image, 0, 0);
+      };
+      image.src = `data:image/png;base64,${next.image}`;
+    };
+    const stop = screen.subscribe((next) => {
+      frame.current = next;
+      draw(thumb.current, next);
+      draw(stage.current, next);
+      if (next?.state === "needs-token") setStatus(t("Set CUA_ENV_TOKEN on this computer."));
+      else if (next?.state === "error") setStatus(next.message || t("Desktop unavailable"));
+      else setStatus("");
+    });
     return () => {
-      void screen.hide();
+      stop?.();
+      void screen.hide?.();
     };
   }, [screen]);
-  const changeZoom = (direction) => {
-    void Promise.resolve(screen.zoom(direction)).then((next) => {
-      if (typeof next === "number") setZoom(next);
-    });
+  const sendPointer = (event) => {
+    const canvas = event.currentTarget;
+    const box = canvas.getBoundingClientRect();
+    const shot = frame.current;
+    if (!screen || !shot?.width || !box.width) return;
+    void screen.pointer({ x: event.nativeEvent.offsetX, y: event.nativeEvent.offsetY, viewWidth: box.width, viewHeight: box.height });
   };
-  const reload = () => {
-    setStatus(t("Refreshing the desktop…"));
-    void Promise.resolve(screen.reload()).finally(() => setStatus(""));
-  };
-  const preview = (0, import_react48.createElement)("button", {
+  const preview = (0, import_react48.createElement)("canvas", {
     ref: thumb,
-    type: "button",
     className: "bt-screen-thumb",
     "data-screen-thumb": "",
     "aria-label": t("{name}'s screen", { name }),
     onClick: () => {
       if (screen) setOpen(true);
       else if (desktop) requestLiveDesktop(desktop, bot);
-    }
+    },
+    onPointerDown: sendPointer
   });
   return (0, import_react48.createElement)(
     "div",
@@ -17877,22 +17881,23 @@ function VirtualScreenView({ bot, onDetails, onLibrary, onBrowser }) {
         { className: "bt-screen-bar" },
         (0, import_react48.createElement)("span", null, t("{name}'s screen", { name })),
         (0, import_react48.createElement)("span", null, status),
-        (0, import_react48.createElement)(
-          "span",
-          { className: "bt-screen-zoom" },
-          (0, import_react48.createElement)("button", { type: "button", className: "bt-screen-back", onClick: () => changeZoom(-1), "aria-label": t("Zoom out") }, "−"),
-          (0, import_react48.createElement)("span", null, `${Math.round(zoom * 100)}%`),
-          (0, import_react48.createElement)("button", { type: "button", className: "bt-screen-back", onClick: () => changeZoom(1), "aria-label": t("Zoom in") }, "+"),
-          (0, import_react48.createElement)("button", { type: "button", className: "bt-screen-back", onClick: reload }, t("Reload"))
-        ),
         (0, import_react48.createElement)("button", { type: "button", className: "bt-screen-back", onClick: () => setOpen(false) }, t("Close"))
       ),
-      (0, import_react48.createElement)("div", {
+      (0, import_react48.createElement)("canvas", {
         ref: stage,
         className: "bt-screen-stage",
         "data-screen-stage": "",
-        role: "region",
-        "aria-label": t("Virtual screen")
+        role: "img",
+        "aria-label": t("Virtual screen"),
+        tabIndex: 0,
+        onPointerDown: sendPointer,
+        onKeyDown: (event) => {
+          if (!screen) return;
+          if (event.key.length === 1 || event.key === "Enter") {
+            event.preventDefault();
+            void screen.type(event.key === "Enter" ? "\n" : event.key);
+          }
+        }
       })
     ), document.body) : null
   );

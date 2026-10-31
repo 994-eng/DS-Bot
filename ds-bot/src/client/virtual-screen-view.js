@@ -1,4 +1,4 @@
-import { createElement as h, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createElement as h, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { t } from './i18n.js'
 import { embeddedScreen, requestLiveDesktop, screenIdFor } from './virtual-screen.js'
@@ -16,44 +16,45 @@ export function VirtualScreenView({ bot, onDetails, onLibrary, onBrowser }) {
   const screen = embeddedScreen()
   const desktop = screen ? null : liveDesktop()
   const [open, setOpen] = useState(false)
-  const [zoom, setZoom] = useState(1)
   const [status, setStatus] = useState('')
-  useLayoutEffect(() => {
-    const node = open ? stage.current : thumb.current
-    if (!node || !screen) return undefined
-    const place = () => {
-      const box = node.getBoundingClientRect()
-      void screen.place({ left: box.left, top: box.top, width: box.width, height: box.height })
-    }
-    place()
-    const observer = new ResizeObserver(place)
-    observer.observe(node)
-    window.addEventListener('resize', place)
-    return () => {
-      observer.disconnect()
-      window.removeEventListener('resize', place)
-    }
-  }, [bot?.id, open, screen])
+  const frame = useRef(null)
   useEffect(() => {
     if (!screen) return undefined
-    return () => { void screen.hide() }
-  }, [screen])
-  const changeZoom = (direction) => {
-    void Promise.resolve(screen.zoom(direction)).then((next) => {
-      if (typeof next === 'number') setZoom(next)
+    void screen.show?.()
+    const draw = (canvas, next) => {
+      if (!canvas || next?.state !== 'frame' || typeof next.image !== 'string') return
+      const image = new Image()
+      image.onload = () => {
+        canvas.width = next.width || image.naturalWidth
+        canvas.height = next.height || image.naturalHeight
+        canvas.getContext('2d')?.drawImage(image, 0, 0)
+      }
+      image.src = `data:image/png;base64,${next.image}`
+    }
+    const stop = screen.subscribe((next) => {
+      frame.current = next
+      draw(thumb.current, next)
+      draw(stage.current, next)
+      if (next?.state === 'needs-token') setStatus(t('Set CUA_ENV_TOKEN on this computer.'))
+      else if (next?.state === 'error') setStatus(next.message || t('Desktop unavailable'))
+      else setStatus('')
     })
+    return () => { stop?.(); void screen.hide?.() }
+  }, [screen])
+  const sendPointer = (event) => {
+    const canvas = event.currentTarget
+    const box = canvas.getBoundingClientRect()
+    const shot = frame.current
+    if (!screen || !shot?.width || !box.width) return
+    void screen.pointer({ x: event.nativeEvent.offsetX, y: event.nativeEvent.offsetY, viewWidth: box.width, viewHeight: box.height })
   }
-  const reload = () => {
-    setStatus(t('Refreshing the desktop…'))
-    void Promise.resolve(screen.reload()).finally(() => setStatus(''))
-  }
-  const preview = h('button', {
+  const preview = h('canvas', {
     ref: thumb,
-    type: 'button',
     className: 'bt-screen-thumb',
     'data-screen-thumb': '',
     'aria-label': t("{name}'s screen", { name }),
     onClick: () => { if (screen) setOpen(true); else if (desktop) requestLiveDesktop(desktop, bot) },
+    onPointerDown: sendPointer,
   })
   return h('div', {
     className: 'bt-panel-view bt-screen',
@@ -71,17 +72,21 @@ export function VirtualScreenView({ bot, onDetails, onLibrary, onBrowser }) {
     h('div', { className: 'bt-screen-bar' },
       h('span', null, t("{name}'s screen", { name })),
       h('span', null, status),
-      h('span', { className: 'bt-screen-zoom' },
-        h('button', { type: 'button', className: 'bt-screen-back', onClick: () => changeZoom(-1), 'aria-label': t('Zoom out') }, '−'),
-        h('span', null, `${Math.round(zoom * 100)}%`),
-        h('button', { type: 'button', className: 'bt-screen-back', onClick: () => changeZoom(1), 'aria-label': t('Zoom in') }, '+'),
-        h('button', { type: 'button', className: 'bt-screen-back', onClick: reload }, t('Reload'))),
       h('button', { type: 'button', className: 'bt-screen-back', onClick: () => setOpen(false) }, t('Close'))),
-    h('div', {
+    h('canvas', {
       ref: stage,
       className: 'bt-screen-stage',
       'data-screen-stage': '',
-      role: 'region',
+      role: 'img',
       'aria-label': t('Virtual screen'),
+      tabIndex: 0,
+      onPointerDown: sendPointer,
+      onKeyDown: (event) => {
+        if (!screen) return
+        if (event.key.length === 1 || event.key === 'Enter') {
+          event.preventDefault()
+          void screen.type(event.key === 'Enter' ? '\n' : event.key)
+        }
+      },
     })), document.body) : null)
 }

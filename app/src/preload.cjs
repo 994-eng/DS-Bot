@@ -17,26 +17,12 @@ if (host !== undefined && location.origin === host) {
     browser: browserBridge(),
     // The app's own updater, for the About row's state and buttons.
     updates: updatesBridge(),
-    // The Cua viewer cannot be framed (frame-ancestors 'none'). The panel lays a
-    // WebContentsView over its stage. `open` remains for a window when the
-    // panel is not used. The token stays out of the page.
+    // Frames and clicks go to spacesd in the main process. This page only draws
+    // them. It never loads the ticket viewer.
     desktop: {
-      open: (payload) => ipcRenderer.invoke('ds-bot:open-desktop', {
-        title: typeof payload?.title === 'string' ? payload.title : '',
-        botId: typeof payload?.botId === 'string' ? payload.botId : '',
-      }),
+      open: () => ipcRenderer.invoke('ds-bot:screen-show'),
     },
-    screen: {
-      place: (rect) => ipcRenderer.invoke('ds-bot:screen-place', {
-        left: Number(rect?.left) || 0,
-        top: Number(rect?.top) || 0,
-        width: Number(rect?.width) || 0,
-        height: Number(rect?.height) || 0,
-      }),
-      hide: () => ipcRenderer.invoke('ds-bot:screen-hide'),
-      zoom: (direction) => ipcRenderer.invoke('ds-bot:screen-zoom', Number(direction) < 0 ? -1 : 1),
-      reload: () => ipcRenderer.invoke('ds-bot:screen-reload'),
-    },
+    screen: screenBridge(),
   })
   if (!['127.0.0.1', 'localhost', '::1'].includes(location.hostname)) installScreenDock()
   const caption = process.argv.find(value => value.startsWith('--ds-bot-caption='))
@@ -124,6 +110,33 @@ function updatesBridge() {
 
 // A small preview in the corner. Clicking it opens a large screen below the
 // caption buttons. The page's own thumb or stage owns the view when it has one.
+function screenBridge() {
+  const listeners = new Set()
+  ipcRenderer.on('ds-bot:screen-frame', (_event, frame) => {
+    for (const listener of listeners) {
+      try { listener(frame) } catch (error) { console.error(error) }
+    }
+  })
+  return {
+    show: () => ipcRenderer.invoke('ds-bot:screen-show'),
+    hide: () => ipcRenderer.invoke('ds-bot:screen-hide'),
+    pointer: (point) => ipcRenderer.invoke('ds-bot:screen-pointer', point),
+    type: (text) => ipcRenderer.invoke('ds-bot:screen-type', String(text ?? '')),
+    subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener) },
+  }
+}
+
+function paintFrame(canvas, frame) {
+  if (!canvas || frame?.state !== 'frame' || typeof frame.image !== 'string') return
+  const image = new Image()
+  image.onload = () => {
+    canvas.width = frame.width || image.naturalWidth
+    canvas.height = frame.height || image.naturalHeight
+    canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height)
+  }
+  image.src = `data:image/png;base64,${frame.image}`
+}
+
 function installScreenDock() {
   const mount = () => {
     if (document.getElementById('ds-screen-dock')) return
@@ -134,7 +147,7 @@ function installScreenDock() {
     document.documentElement.append(style)
     const dock = document.createElement('div')
     dock.id = 'ds-screen-dock'
-    const thumb = document.createElement('div')
+    const thumb = document.createElement('canvas')
     thumb.className = 'thumb'
     const captionLabel = document.createElement('div')
     captionLabel.className = 'cap'
@@ -148,8 +161,6 @@ function installScreenDock() {
     const label = document.createElement('span')
     label.textContent = 'Screen'
     const status = document.createElement('span')
-    const zoomLabel = document.createElement('span')
-    zoomLabel.textContent = '100%'
     const button = (text, action) => {
       const node = document.createElement('button')
       node.type = 'button'
@@ -157,46 +168,54 @@ function installScreenDock() {
       node.addEventListener('click', action)
       return node
     }
-    const stage = document.createElement('div')
+    const stage = document.createElement('canvas')
     stage.className = 'stage'
     let expanded = false
-    const setStatus = (state) => {
-      status.textContent = state === 'refreshing' || state === 'expired' ? 'Refreshing the desktop…' : ''
+    let frame = null
+    const shown = () => (expanded ? stage : thumb)
+    const pointOf = (event, canvas) => {
+      const box = canvas.getBoundingClientRect()
+      if (!frame?.width || !box.width) return null
+      return {
+        x: event.offsetX, y: event.offsetY,
+        viewWidth: box.width, viewHeight: box.height,
+      }
     }
-    ipcRenderer.on('ds-bot:screen-status', (_event, payload) => { setStatus(payload?.state) })
-    bar.append(
-      label,
-      status,
-      button('−', () => { void zoom(-1) }),
-      zoomLabel,
-      button('+', () => { void zoom(1) }),
-      button('↻', () => { void ipcRenderer.invoke('ds-bot:screen-reload') }),
-      button('×', () => { expanded = false; place() }),
-    )
+    const onPointer = (event) => {
+      const canvas = event.currentTarget
+      const point = pointOf(event, canvas)
+      if (point) void ipcRenderer.invoke('ds-bot:screen-pointer', point)
+    }
+    thumb.addEventListener('pointerdown', (event) => { expanded = true; sync(); onPointer(event) })
+    stage.addEventListener('pointerdown', onPointer)
+    stage.tabIndex = 0
+    stage.addEventListener('keydown', (event) => {
+      if (event.key.length === 1 || event.key === 'Enter') {
+        event.preventDefault()
+        void ipcRenderer.invoke('ds-bot:screen-type', event.key === 'Enter' ? '\n' : event.key)
+      }
+    })
+    bar.append(label, status, button('×', () => { expanded = false; sync() }))
     overlay.append(bar, stage)
     document.documentElement.append(dock, overlay)
-    thumb.addEventListener('click', () => { expanded = true; place() })
-    const place = () => {
-      const owned = document.querySelector('[data-screen-stage],[data-screen-thumb]')
+    const sync = () => {
+      const owned = document.querySelector('[data-screen-thumb]')
       const ownedBox = owned?.getBoundingClientRect()
       const pageOwns = ownedBox && ownedBox.width >= 8 && ownedBox.height >= 8
       dock.hidden = expanded || Boolean(pageOwns)
       overlay.classList.toggle('open', expanded && !pageOwns)
-      if (pageOwns) return
-      const box = (expanded ? stage : thumb).getBoundingClientRect()
-      void ipcRenderer.invoke('ds-bot:screen-place', { left: box.left, top: box.top, width: box.width, height: box.height })
     }
-    const zoom = async (direction) => {
-      const next = await ipcRenderer.invoke('ds-bot:screen-zoom', direction)
-      if (typeof next === 'number') zoomLabel.textContent = `${Math.round(next * 100)}%`
-      place()
-    }
-    new ResizeObserver(place).observe(stage)
-    new ResizeObserver(place).observe(thumb)
-    window.addEventListener('resize', place)
-    const timer = setInterval(place, 400)
-    window.addEventListener('pagehide', () => { clearInterval(timer) }, { once: true })
-    place()
+    ipcRenderer.on('ds-bot:screen-frame', (_event, next) => {
+      frame = next
+      paintFrame(thumb, next)
+      paintFrame(stage, next)
+      if (next?.state === 'needs-token') status.textContent = 'Set CUA_ENV_TOKEN'
+      else if (next?.state === 'error') status.textContent = 'Desktop unavailable'
+      else status.textContent = ''
+    })
+    void ipcRenderer.invoke('ds-bot:screen-show')
+    window.addEventListener('pagehide', () => { void ipcRenderer.invoke('ds-bot:screen-hide') }, { once: true })
+    sync()
   }
   if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', mount, { once: true })
   else mount()

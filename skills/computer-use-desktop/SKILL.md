@@ -7,7 +7,7 @@ description: Drive the visible Cua desktop with screenshots, the mouse, and the 
 
 CUA is the desktop. EGO is the browser. Do not swap them.
 
-The work happens on the virtual screen the app shows on the right. That screen is the Cua desktop at `http://38.76.188.71:3211` (the window opens `http://38.76.188.71:8890/desktop`). Google Chrome is installed on that desktop. Launch Chrome there. The user must see the window, the pointer, and the keys. Do not drive a headless session or a display that is not this screen.
+The work happens on the virtual screen the app shows on the right. That screen is the Cua desktop at `http://38.76.188.71:3211`. The client draws screenshots from spacesd and sends the pointer and keyboard there. It does not open a viewer page. Google Chrome is installed on that desktop. Launch Chrome there. The user must see the window, the pointer, and the keys. Do not drive a headless session or a display that is not this screen.
 
 ## When to use
 

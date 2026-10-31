@@ -29,8 +29,8 @@ import { createDeferredPrompt } from './update-prompt.mjs'
 import { applyCloudDefaults } from './cloud-backend.mjs'
 import { isAppServer, serverPage, serverUrl } from './default-server.mjs'
 import { applyMimoEnv, mimoCredentialPaths } from './mimo.mjs'
-import { createDesktopViewer } from './desktop-viewer.mjs'
-import { createScreenPanel } from './screen-panel.mjs'
+import { readDesktopToken } from './desktop-viewer.mjs'
+import { createNativeDesktop } from './native-desktop.mjs'
 import { CAPTION_HEIGHT, cssColor, micaAvailable, nativeThemeSource } from './window-frame.mjs'
 
 // The packaged client opens the shared desktop with these URLs. No token is set.
@@ -52,10 +52,11 @@ const IPC = {
   appUpdateInstall: 'ds-bot:app-update-install', appUpdateOpen: 'ds-bot:app-update-open',
   appUpdateChanged: 'ds-bot:app-update-changed',
   openDesktop: 'ds-bot:open-desktop',
-  screenPlace: 'ds-bot:screen-place',
+  screenShow: 'ds-bot:screen-show',
   screenHide: 'ds-bot:screen-hide',
-  screenZoom: 'ds-bot:screen-zoom',
-  screenReload: 'ds-bot:screen-reload',
+  screenPointer: 'ds-bot:screen-pointer',
+  screenType: 'ds-bot:screen-type',
+  screenFrame: 'ds-bot:screen-frame',
 }
 // A cookie export larger than this is not a cookie export.
 const IMPORT_FILE_MAX = 32 * 1024 * 1024
@@ -241,33 +242,18 @@ async function start() {
   ready.catch((error) => { if (serverUrl() === undefined) fail(error); else console.error(error) })
   // A throwaway run (DS_BOT_HOME) keeps its folders where it was told.
   const fixed = Boolean(process.env.DS_BOT_HOME)
-  const desktopViewer = createDesktopViewer({ BrowserWindow, getParent: () => mainWindow })
-  const screenPanel = createScreenPanel({
-    WebContentsView,
-    getWindow: () => mainWindow,
-    onStatus: (status) => { mainWindow?.webContents.send('ds-bot:screen-status', status) },
+  let screenViewers = 0
+  const nativeDesktop = createNativeDesktop({
+    readToken: readDesktopToken,
+    onFrame: (frame) => { mainWindow?.webContents.send(IPC.screenFrame, frame) },
   })
-  ipcMain.handle(IPC.openDesktop, (event, payload) => {
-    assertWindow(event)
-    const title = typeof payload?.title === 'string' ? payload.title : ''
-    return desktopViewer.open({ title })
-  })
-  ipcMain.handle(IPC.screenPlace, (event, rect) => {
-    assertWindow(event)
-    return screenPanel.place(rect)
-  })
-  ipcMain.handle(IPC.screenHide, (event) => {
-    assertWindow(event)
-    screenPanel.hide()
-  })
-  ipcMain.handle(IPC.screenZoom, (event, direction) => {
-    assertWindow(event)
-    return screenPanel.zoomBy(Number(direction) < 0 ? -1 : 1)
-  })
-  ipcMain.handle(IPC.screenReload, (event) => {
-    assertWindow(event)
-    return screenPanel.reload()
-  })
+  const showScreen = () => { screenViewers += 1; nativeDesktop.start(); return { base: nativeDesktop.base } }
+  const hideScreen = () => { screenViewers = Math.max(0, screenViewers - 1); if (screenViewers === 0) nativeDesktop.stop() }
+  ipcMain.handle(IPC.openDesktop, (event) => { assertWindow(event); return showScreen() })
+  ipcMain.handle(IPC.screenShow, (event) => { assertWindow(event); return showScreen() })
+  ipcMain.handle(IPC.screenHide, (event) => { assertWindow(event); hideScreen() })
+  ipcMain.handle(IPC.screenPointer, (event, point) => { assertWindow(event); return nativeDesktop.pointer(point) })
+  ipcMain.handle(IPC.screenType, (event, text) => { assertWindow(event); return nativeDesktop.type(typeof text === 'string' ? text : '') })
   ipcMain.handle(IPC.dataLocation, (event) => {
     assertWindow(event)
     return { path: places.dataDir, fixed }

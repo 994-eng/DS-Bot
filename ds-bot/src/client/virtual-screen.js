@@ -5,11 +5,10 @@ export function screenIdFor(botId) {
   return `screen:${botId}`
 }
 
-// The desktop app lays the live page over `[data-screen-stage]`. Without that
-// bridge, ask it to open a window. Neither path sends a token.
+// The desktop app draws spacesd frames on a canvas. It does not load a viewer page.
 export function embeddedScreen() {
   const screen = globalThis.dsBotApp?.screen
-  return typeof screen?.place === 'function' ? screen : null
+  return typeof screen?.subscribe === 'function' ? screen : null
 }
 
 export function requestLiveDesktop(desktop, bot) {
@@ -78,10 +77,10 @@ export const VIRTUAL_SCREEN_CSS = `
 .bt-screen-tabs button[aria-selected=true]{color:var(--bt-ink);box-shadow:inset 0 -2px 0 var(--bt-ink)}
 .bt-screen-zoom{display:flex;gap:6px;align-items:center}
 .bt-screen-card{margin:16px;width:min(100%,280px);border:1px solid var(--bt-line);border-radius:12px;overflow:hidden;background:var(--bt-card)}
-.bt-screen-thumb{display:block;width:100%;height:158px;border:0;padding:0;background:#111;cursor:pointer}
+.bt-screen-thumb{display:block;width:100%;height:158px;border:0;padding:0;background:#111;cursor:pointer;object-fit:contain}
 .bt-screen-cap{padding:8px 10px;font-size:12px;color:var(--bt-ink-2)}
 .bt-screen-overlay{position:fixed;left:24px;right:24px;bottom:24px;top:48px;z-index:70;display:flex;flex-direction:column;background:#111;border-radius:12px;overflow:hidden}
-.bt-screen-stage{flex:1;min-height:0;background:#111}
+.bt-screen-stage{flex:1;min-height:360px;width:100%;background:#111}
 .bt-screen-empty{color:var(--bt-ink-2);font-size:13px;max-width:260px}
 .bt-screen-empty strong{display:block;color:var(--bt-ink);font-size:15px;font-weight:600;margin-bottom:6px}
 .bt-screen-note{color:var(--bt-ink-3);font-size:12px}

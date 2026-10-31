@@ -23,7 +23,7 @@ test('opening the live desktop asks the app for that Bot and sends no token', ()
     assert.deepEqual(calls, [{ botId: 'chief', title: 'Chief' }])
     assert.equal('token' in calls[0], false)
     assert.equal(requestLiveDesktop(undefined, { id: 'chief', name: 'Chief' }), false)
-    globalThis.dsBotApp = { screen: { place() {} } }
+    globalThis.dsBotApp = { screen: { subscribe() {} } }
     assert.equal(embeddedScreen() !== null, true)
     assert.equal(requestLiveDesktop({ open: () => { calls.push('window') } }, { id: 'chief', name: 'Chief' }), true)
     assert.equal(calls.includes('window'), false)

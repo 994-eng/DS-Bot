@@ -25,20 +25,29 @@ function keyFrom(parsed) {
   return value.trim()
 }
 
-// Writes the pack-time credential file. An empty key writes `{}` so the package
-// still builds. The key is never logged and this file is not committed.
-export function writePackedCredentials(env, { mkdirSync, writeFileSync, dest }) {
-  const key = typeof env.MIMO_API_KEY === 'string' ? env.MIMO_API_KEY.trim() : ''
-  const body = key === '' ? {} : { MIMO_API_KEY: key }
-  mkdirSync(dirname(dest), { recursive: true })
-  writeFileSync(dest, `${JSON.stringify(body)}\n`, { encoding: 'utf8', mode: 0o600 })
-  return key !== ''
+function trimmed(env, name) {
+  return typeof env?.[name] === 'string' ? env[name].trim() : ''
 }
 
-// Sets MIMO_API_KEY on `env` when a local file has one and the variable is empty.
-// Returns whether a key is now present. The value is not returned.
+// Writes the pack-time credential file. Empty secrets write `{}` so the package
+// still builds. Values are never logged and this file is not committed.
+export function writePackedCredentials(env, { mkdirSync, writeFileSync, dest }) {
+  const mimo = trimmed(env, 'MIMO_API_KEY')
+  const cua = trimmed(env, 'CUA_ENV_TOKEN')
+  const body = {}
+  if (mimo !== '') body.MIMO_API_KEY = mimo
+  if (cua !== '') body.CUA_ENV_TOKEN = cua
+  mkdirSync(dirname(dest), { recursive: true })
+  writeFileSync(dest, `${JSON.stringify(body)}\n`, { encoding: 'utf8', mode: 0o600 })
+  return { mimo: mimo !== '', cua: cua !== '' }
+}
+
+// Fills MIMO_API_KEY from a credential file when that variable is empty.
+// CUA_ENV_TOKEN is left for readDesktopToken, which treats the env and
+// CUA_ENV_TOKEN_FILE as overrides of this same file. Returns whether a MiMo
+// key is now present. The value is not returned.
 export function applyMimoEnv(env, { readFileSync, paths = mimoCredentialPaths(env) } = {}) {
-  if (typeof env.MIMO_API_KEY === 'string' && env.MIMO_API_KEY.trim() !== '') return true
+  if (trimmed(env, 'MIMO_API_KEY') !== '') return true
   if (typeof readFileSync !== 'function') return false
   for (const path of paths) {
     let parsed

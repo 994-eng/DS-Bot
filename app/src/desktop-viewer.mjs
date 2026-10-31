@@ -9,9 +9,17 @@ export function readDesktopToken(env = process.env, read = readFileSync) {
   const fromEnv = typeof env.CUA_ENV_TOKEN === 'string' ? env.CUA_ENV_TOKEN.trim() : ''
   if (fromEnv !== '') return fromEnv
   const file = typeof env.CUA_ENV_TOKEN_FILE === 'string' ? env.CUA_ENV_TOKEN_FILE.trim() : ''
-  if (file === '') return ''
+  if (file !== '') {
+    try {
+      const text = String(read(file, 'utf8')).trim()
+      if (text !== '') return text
+    } catch { /* a missing override file falls through to the packed credentials */ }
+  }
+  const packed = typeof env.CUA_PACKED_CREDENTIALS === 'string' ? env.CUA_PACKED_CREDENTIALS.trim() : ''
+  if (packed === '') return ''
   try {
-    return String(read(file, 'utf8')).trim()
+    const parsed = JSON.parse(read(packed, 'utf8'))
+    return typeof parsed?.CUA_ENV_TOKEN === 'string' ? parsed.CUA_ENV_TOKEN.trim() : ''
   } catch {
     return ''
   }

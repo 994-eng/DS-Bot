@@ -41,7 +41,7 @@ Windows 应用不会要求登录、注册或填写邮箱。安装 `DeepSeek-Bot-
 | 电脑（Cua spacesd） | `http://38.76.188.71:3211` |
 | 屏幕 | `http://38.76.188.71:8890/desktop` |
 
-右侧 **电脑** 是一小张预览，标题是这个 Bot 的屏幕。对话和窗口按钮仍然能点。点预览会把桌面放大，并留出标题栏按钮。画面是本应用直接向 Cua spacesd `http://38.76.188.71:3211` 要的截图，鼠标和键盘也发到同一个接口。不打开 HTML 查看器，帧也不经过 8890 或 DeepSeek Harness。在这台电脑上设置 `CUA_ENV_TOKEN`（或 `CUA_ENV_TOKEN_FILE`）。令牌只放在请求头里，不进网址，也不进 git。浏览器工作用 EGO。桌面用 CUA。插件告诉模型的话在 `docs/harness-identity-prompt.md`。`skills/` 里的技能会打进应用。
+右侧 **电脑** 是一小张预览，标题是这个 Bot 的屏幕。对话和窗口按钮仍然能点。点预览会把桌面放大，并留出标题栏按钮。画面是本应用直接向 Cua spacesd `http://38.76.188.71:3211` 要的截图，鼠标和键盘也发到同一个接口。不打开 HTML 查看器，帧也不经过 8890 或 DeepSeek Harness。Windows 打包步骤读取 Actions secret `CUA_ENV_TOKEN`，有值时和 MiMo 密钥一起写进安装包。在仓库的 Settings → Secrets and variables → Actions 里新建这个 secret，值用服务器上 `/etc/ds-bot/cua-env-token` 的内容。不要提交进 git。电脑上的 `CUA_ENV_TOKEN` 和 `CUA_ENV_TOKEN_FILE` 仍然优先于安装包里的值。令牌只放在请求头里，不进网址。浏览器工作用 EGO。桌面用 CUA。插件告诉模型的话在 `docs/harness-identity-prompt.md`。`skills/` 里的技能会打进应用。
 
 如果页面写着 `dsh web authentication required`，服务器在启动 `dsh web` 时打印过一条连接地址。在 Windows 机器上把 `DS_BOT_SERVER` 设成那条完整地址再打开应用。不要把这条地址提交进仓库。
 

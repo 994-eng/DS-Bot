@@ -193,6 +193,7 @@ async function start() {
   origin = `http://127.0.0.1:${String(port)}`
   const resources = typeof process.resourcesPath === 'string' ? process.resourcesPath : ''
   const packedKey = resources === '' ? '' : join(resources, 'mimo-credentials.json')
+  if (packedKey !== '') process.env.CUA_PACKED_CREDENTIALS = packedKey
   const skillDir = resources === '' ? '' : join(resources, 'desktop-skills')
   applyMimoEnv(process.env, { readFileSync, paths: [packedKey, ...mimoCredentialPaths(process.env)].filter(path => path !== '') })
   const pnpm = join(app.getAppPath(), 'node_modules', 'pnpm', 'bin', 'pnpm.mjs')

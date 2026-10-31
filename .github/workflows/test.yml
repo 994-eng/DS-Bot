@@ -116,6 +116,7 @@ jobs:
       - run: npm run dist
         env:
           MIMO_API_KEY: ${{ secrets.MIMO_API_KEY }}
+          CUA_ENV_TOKEN: ${{ secrets.CUA_ENV_TOKEN }}
       - name: Check the packaged app
         run: node scripts/check-packed.mjs
       - name: Upload the Windows installer

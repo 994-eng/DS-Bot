@@ -53,7 +53,8 @@ export async function beforePack(context, prepare = preparePrimaryRuntime) {
     const wrote = writePackedCredentials(process.env, {
       mkdirSync, writeFileSync, dest: join(appDir, 'build', 'mimo-credentials.json'),
     })
-    if (!wrote) console.error('MIMO_API_KEY is not set; the package has the MiMo route and no key.')
+    if (!wrote.mimo) console.error('MIMO_API_KEY is not set; the package has the MiMo route and no key.')
+    if (!wrote.cua) console.error('CUA_ENV_TOKEN is not set; the packaged screen has no spacesd token until the machine sets one.')
   }
   await prepare(officeRuntimeRequest(context))
 }

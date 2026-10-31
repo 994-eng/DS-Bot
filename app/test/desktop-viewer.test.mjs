@@ -36,14 +36,14 @@ function fakeBrowserWindow() {
   return { BrowserWindow, made }
 }
 
-test('the Screen window loads the cloud viewer and not an iframe URL with a token', () => {
+test('the Screen window loads the shared desktop and not a URL with a token', () => {
+  assert.equal(viewerTarget({}).url, 'http://38.76.188.71:8890/desktop')
   const target = viewerTarget({
-    DS_BOT_VIEWER_URL: 'http://user:desk-token@38.76.188.71:3211/viewer/?token=desk-token',
+    DS_BOT_DESKTOP_URL: 'http://user:desk-token@38.76.188.71:8890/desktop?token=desk-token',
     CUA_ENV_TOKEN: 'desk-token',
   })
-  assert.equal(target.url, 'http://38.76.188.71:3211/viewer/')
+  assert.equal(target.url, 'http://38.76.188.71:8890/desktop')
   assert.equal(target.url.includes('desk-token'), false)
-  assert.equal(target.spacesdUrl, 'http://38.76.188.71:3211')
   const { BrowserWindow, made } = fakeBrowserWindow()
   const viewer = createDesktopViewer({
     BrowserWindow,
@@ -51,16 +51,14 @@ test('the Screen window loads the cloud viewer and not an iframe URL with a toke
   })
   const opened = viewer.open({ title: 'Chief' })
   assert.equal(opened.reused, false)
-  assert.equal(opened.url, 'http://38.76.188.71:3211/viewer/')
-  assert.equal(made[0].url, 'http://38.76.188.71:3211/viewer/')
+  assert.equal(opened.url, 'http://38.76.188.71:8890/desktop')
+  assert.equal(made[0].url, 'http://38.76.188.71:8890/desktop')
   assert.equal(made[0].url.includes('desk-token'), false)
   assert.equal(made[0].options.webPreferences.nodeIntegration, false)
   const again = viewer.open({ title: 'Writer' })
   assert.equal(again.reused, true)
   assert.equal(made.length, 1)
   assert.equal(made[0].title, 'Writer')
-  assert.equal(made[0].handlers.length, 1)
-  assert.deepEqual(made[0].handlers[0].filter.urls, ['http://38.76.188.71:3211/*'])
 })
 
 test('a missing token does not invent one, and source does not store one', () => {

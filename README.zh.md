@@ -40,7 +40,23 @@ Windows 应用不会要求登录、注册或填写邮箱。安装 `DeepSeek-Bot-
 | 电脑（Cua spacesd） | `http://38.76.188.71:3211` |
 | 查看器 | `http://38.76.188.71:3211/viewer/` |
 
-在应用里打开一个 Bot，选 **Screen**。应用会单独开一个窗口，打开 `http://38.76.188.71:3211/viewer/` 上的实时桌面。查看器不允许被嵌进面板，所以画面在这个窗口里，而不是聊天旁边的空框。面板上仍有一行说明：这块屏幕属于这个 Bot。如果服务器要求令牌，在环境变量 `CUA_ENV_TOKEN` 里设置，或用 `CUA_ENV_TOKEN_FILE` 指向仓库以外的文件。令牌不会写进仓库，也不会放进网址。
+在应用里打开一个 Bot，选 **Screen**。应用会单独开一个窗口，打开 `http://38.76.188.71:8890/desktop`。面板本身不是画面。
+
+## MiMo
+
+应用默认的模型路由是 MiMo，OpenAI 兼容地址为 `https://mimo.ezlook.top/v1`。
+
+| 模型 | 作用 |
+|---|---|
+| `mimo-v2.6-flash` | 默认 |
+| `mimo-v2.6-pro` | 可在模型菜单里选择 |
+
+密钥不在这个仓库里。设置一次再启动应用：
+
+- 环境变量 `MIMO_API_KEY`，或
+- 仓库以外的文件：Windows 上是 `%APPDATA%\DeepSeek-Bot\credentials.json`，也可以放在应用数据目录的 `credentials.json`。JSON 为 `{ "MIMO_API_KEY": "…" }` 或 `{ "apiKey": "…" }`。
+
+路由使用的凭据名是 `MIMO_API_KEY`。DeepSeek Harness 从环境变量读取它。不需要再填提供方表单。
 
 拉取请求会在 Windows 上打安装包，工作流产物名叫 `DeepSeek-Bot-win-x64`。在 Windows 上自己构建：
 

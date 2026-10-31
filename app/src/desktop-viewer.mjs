@@ -1,9 +1,9 @@
-// The Cua viewer sends `frame-ancestors 'none'`, so the desktop page cannot sit
-// in an iframe inside the Bot panel. A top-level BrowserWindow is the page
-// itself, which that policy does not block. The env token, when set, is a
-// request header only and never part of the URL.
+// The Screen panel opens the shared desktop in its own window. The page is not
+// iframed. No token is put in the address.
 import { readFileSync } from 'node:fs'
 import { cloudConnection } from './cloud-backend.mjs'
+
+export const DESKTOP_PAGE = 'http://38.76.188.71:8890/desktop'
 
 export function readDesktopToken(env = process.env, read = readFileSync) {
   const fromEnv = typeof env.CUA_ENV_TOKEN === 'string' ? env.CUA_ENV_TOKEN.trim() : ''
@@ -21,7 +21,7 @@ export function readDesktopToken(env = process.env, read = readFileSync) {
 // along in the address.
 export function viewerTarget(env = process.env) {
   const connection = cloudConnection()
-  const raw = env.DS_BOT_VIEWER_URL || connection.viewerUrl
+  const raw = env.DS_BOT_DESKTOP_URL || DESKTOP_PAGE
   const url = new URL(raw)
   url.username = ''
   url.password = ''

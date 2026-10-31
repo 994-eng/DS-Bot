@@ -40,15 +40,31 @@ The Windows app does not ask you to log in, register, or enter an email. Install
 | Computer (Cua spacesd) | `http://38.76.188.71:3211` |
 | Viewer | `http://38.76.188.71:3211/viewer/` |
 
-Open a Bot and choose **Screen**. The app opens the live desktop in its own window at `http://38.76.188.71:3211/viewer/`. The viewer refuses to be embedded in the panel, so the picture is that window, not an empty frame inside the chat. The panel keeps a one-line note that the screen belongs to that Bot. If the server expects a token, set `CUA_ENV_TOKEN` in the environment or point `CUA_ENV_TOKEN_FILE` at a file outside this repository. The token is not stored here and is not put in the address.
+Open a Bot and choose **Screen**. The app opens `http://38.76.188.71:8890/desktop` in its own window. The panel is not a video frame.
 
-A pull request builds the installer on Windows. The workflow run's artifact is `DeepSeek-Bot-win-x64`. To build it yourself on Windows, from this checkout:
+## MiMo
+
+The app’s default model route is MiMo, an OpenAI-compatible endpoint at `https://mimo.ezlook.top/v1`.
+
+| Model | Role |
+|---|---|
+| `mimo-v2.6-flash` | Default |
+| `mimo-v2.6-pro` | Selectable in the model menu |
+
+The API key is not in this repository. Set it once, then start the app:
+
+- Environment variable `MIMO_API_KEY`, or
+- A file outside the repo: `%APPDATA%\DeepSeek-Bot\credentials.json` on Windows (`APPDATA`), or the app data folder’s `credentials.json`. The JSON is `{ "MIMO_API_KEY": "…" }` or `{ "apiKey": "…" }`.
+
+The route’s credential name is `MIMO_API_KEY`. DeepSeek Harness reads that from the environment. No provider form is required.
+
+To build the installer on Windows:
 
 ```powershell
 .\scripts\build-windows-client.ps1
 ```
 
-The installer is `app\dist-pack\DeepSeek-Bot-<version>-win-x64.exe`. CI does not open `38.76.188.71`, so a live screenshot from that machine is not part of the automated run.
+The installer is `app\dist-pack\DeepSeek-Bot-<version>-win-x64.exe`. A Windows rebuild is required before an installed copy picks up MiMo or the desktop address.
 
 ![Say one sentence to Chief, and it sets up the bots and the group chat](docs/images/team.png)
 

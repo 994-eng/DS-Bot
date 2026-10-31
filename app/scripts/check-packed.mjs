@@ -320,6 +320,7 @@ try {
   const { ELECTRON_RUN_AS_NODE: _runAsNode, ...env } = process.env
   Object.assign(env, {
     DS_BOT_HOME: join(work, 'home'), DS_BOT_SHELL_DATA: join(work, 'shell'),
+    DS_BOT_SERVER: 'local',
     DEEPSEEK_BASE_URL: modelUrl, DEEPSEEK_API_KEY: 'mock-key',
   })
   const app = spawn(packedApp, [`--remote-debugging-port=${String(port)}`, `--inspect=127.0.0.1:${String(mainPort)}`], { stdio: 'inherit', env })

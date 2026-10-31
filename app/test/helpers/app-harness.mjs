@@ -23,6 +23,8 @@ export const waitFor = async (check, what, timeout = 10_000) => {
  * @param {{ packaged?: boolean }} options whether the app is a packaged one, with an updater
  */
 export const startApp = async ({ packaged = true } = {}) => {
+  // The installed app opens the shared server. These tests drive the local Host.
+  if (process.env.DS_BOT_SERVER === undefined) process.env.DS_BOT_SERVER = 'local'
   const home = mkdtempSync(join(tmpdir(), 'ds-bot-main-home-'))
   const workspace = join(home, 'workspace')
   mkdirSync(workspace, { recursive: true })

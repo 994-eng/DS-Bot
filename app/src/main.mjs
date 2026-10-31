@@ -17,6 +17,7 @@ import { applyCookies, CookieImports } from './cookie-import.mjs'
 import { parseCookieFile } from './cookie-parse.mjs'
 import { downloadSaver } from './downloads.mjs'
 import { canonicalExecPath } from './canonical-path.mjs'
+import { isAppServer, serverPage } from './default-server.mjs'
 import { chooseLocations, localeText, programFolder, saveLocations, text } from './first-run.mjs'
 import { hostPort } from './host-port.mjs'
 import { HostProcess } from './host-process.mjs'
@@ -221,7 +222,7 @@ async function start() {
     })
     return host.start()
   })()
-  ready.catch(fail)
+  ready.catch((error) => { if (serverPage() === undefined) fail(error); else console.error(error) })
   // A throwaway run (DS_BOT_HOME) keeps its folders where it was told.
   const fixed = Boolean(process.env.DS_BOT_HOME)
   ipcMain.handle(IPC.dataLocation, (event) => {
@@ -358,6 +359,14 @@ async function start() {
   // is there once that load came through. The token is good for one browser only: it is spent
   // as soon as a window carries it.
   bootstrap = (async () => {
+    const remote = serverPage()
+    if (remote) {
+      const win = mainWindow
+      if (win === undefined) return false
+      await win.loadURL(remote)
+      hostReady = true
+      return true
+    }
     const { url } = await ready
     launchUrl = url
     const win = mainWindow
@@ -605,7 +614,7 @@ function createWindow() {
     } : {}),
     webPreferences: {
       preload: join(here, 'preload.cjs'), contextIsolation: true, sandbox: true, webviewTag: true,
-      additionalArguments: [`--ds-bot-origin=${origin}`, ...(win32 ? [`--ds-bot-caption=${String(CAPTION_HEIGHT)}`, ...(mica ? ['--ds-bot-mica'] : [])] : [])],
+      additionalArguments: [`--ds-bot-origin=${serverPage() ? new URL(serverPage()).origin : origin}`, ...(win32 ? [`--ds-bot-caption=${String(CAPTION_HEIGHT)}`, ...(mica ? ['--ds-bot-mica'] : [])] : [])],
     },
   })
   mainWindow = win
@@ -663,7 +672,7 @@ function createWindow() {
     child.webContents.on('will-redirect', away)
   })
   contents.on('will-navigate', (event, url) => {
-    if (url.startsWith(`${origin}/`)) return
+    if (url.startsWith(`${origin}/`) || isAppServer(url)) return
     event.preventDefault()
     openOutside(url)
   })
@@ -676,7 +685,9 @@ function createWindow() {
   // minimized asks for it when it comes back.
   win.on('show', () => { void flushDeferredUpdate().catch((error) => { console.error(error) }) })
   win.on('restore', () => { void flushDeferredUpdate().catch((error) => { console.error(error) }) })
-  void win.loadURL(notePage(text().starting)).catch(() => {})
+  // The installed app opens the server directly. The starting note is only for
+  // the local Host, and a late note load must not replace the server page.
+  if (serverPage() === undefined) void win.loadURL(notePage(text().starting)).catch(() => {})
   return win
 }
 
@@ -691,6 +702,12 @@ function rebuildWindow() {
 // cookie; the later ones use the plain address, which that cookie carries. The launch URL is
 // used again only when no browser carried it at all, so that a token is never spent twice.
 async function connectHost(win) {
+  const remote = serverPage()
+  if (remote) {
+    hostReady = true
+    await win.loadURL(remote)
+    return
+  }
   if (hostReady) { await win.loadURL(`${origin}/`); return }
   // The first load of the Host decides how this window comes in.
   if (bootstrap !== undefined) await bootstrap
@@ -765,8 +782,10 @@ function setMenu() {
 
 function assertWindow(event) {
   const contents = mainWindow?.webContents
+  const page = event.senderFrame?.url ?? ''
+  const allowed = page.startsWith(`${origin}/`) || isAppServer(page)
   if (contents === undefined || event.sender !== contents || event.senderFrame !== contents.mainFrame
-    || !event.senderFrame.url.startsWith(`${origin}/`)) throw new Error('DeepSeek Bot: rejected IPC from an unknown page')
+    || !allowed) throw new Error('DeepSeek Bot: rejected IPC from an unknown page')
 }
 
 function fromWindow(event) {

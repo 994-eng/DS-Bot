@@ -10,6 +10,16 @@ export function serverUrl(env = process.env) {
   return DEFAULT_SERVER
 }
 
+// The address the window loads. A query or hash on DS_BOT_SERVER is kept, so a
+// connection URL printed by `dsh web` can be used without putting it in git.
+export function serverPage(env = process.env) {
+  const server = serverUrl(env)
+  if (!server) return undefined
+  const url = new URL(server)
+  if (url.pathname === '') url.pathname = '/'
+  return url.toString()
+}
+
 export function isAppServer(url, env = process.env) {
   const server = serverUrl(env)
   if (!server) return false

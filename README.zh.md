@@ -13,7 +13,9 @@
 
 DS Bot 是一个基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（简称 dsh）的 bot 插件，插件将 dsh 改造为 bot 形式。你可以与自己创建的 bot 交流、工作。
 
-这个 fork 的 Windows 应用会自己打开 `http://38.76.188.71:3080`，没有登录或注册。内置浏览器保持原样。拉取请求里的 **Desktop app package (Windows)** 会上传安装包 `DeepSeek-Bot-win-x64`。
+这个 fork 的 Windows 安装包是原版 DS Bot。它会自己打开 `http://38.76.188.71:3080`，没有登录或注册。模型在那台服务器上。这个客户端不含 API 密钥。内置浏览器保持原样。
+
+安装包是拉取请求 Actions 里 **Desktop app package (Windows)** 的产物 `DeepSeek-Bot-win-x64`。下载之后可以拷到服务器的 `/var/www/ds-bot-downloads/`。`DS_BOT_SERVER=local` 会让开发运行用本机自己的 Host。
 
 ![和 Chief 说一句话，它就把 bot 和群聊建好](docs/images/team.zh.png)
 

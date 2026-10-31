@@ -45,6 +45,40 @@ export function desktopNavigationAllowed(target, page = DESKTOP_PAGE) {
   }
 }
 
+export function isDesktopEntry(target, page = DESKTOP_PAGE) {
+  try {
+    const next = new URL(target)
+    const home = new URL(page)
+    return next.origin === home.origin && next.pathname.startsWith('/desktop')
+  } catch {
+    return false
+  }
+}
+
+export function isViewerTicket(target) {
+  try {
+    const next = new URL(target)
+    return next.pathname.startsWith('/viewer') && (next.searchParams.has('ticket') || next.hash.includes('ticket='))
+  } catch {
+    return false
+  }
+}
+
+// `allow` keeps the load. `refresh` means the ticket page must be loaded again
+// so a stale `/viewer/?ticket=` is not reused. `block` leaves this host.
+export function navigationDecision(target, { expectViewer = false, page = DESKTOP_PAGE } = {}) {
+  if (!desktopNavigationAllowed(target, page)) return 'block'
+  if (isDesktopEntry(target, page)) return 'allow'
+  if (isViewerTicket(target)) return expectViewer ? 'allow' : 'refresh'
+  return 'allow'
+}
+
+export function pageSaysExpired(text) {
+  return /expired|not valid|reconnect|已过期|无效/iu.test(String(text ?? ''))
+}
+
+export const TICKET_REFRESH_MS = 12 * 60 * 1000
+
 function rectOf(rect) {
   const width = Math.round(Number(rect?.width) || 0)
   const height = Math.round(Number(rect?.height) || 0)
@@ -57,15 +91,56 @@ function rectOf(rect) {
   }
 }
 
-export function createScreenPanel({ WebContentsView, getWindow, env = process.env } = {}) {
+export function createScreenPanel({ WebContentsView, getWindow, env = process.env, onStatus = () => {}, now = () => Date.now() } = {}) {
   let view
   let parent
   let zoom = 1
   let loaded = false
+  let expectViewer = false
+  let refreshing = false
+  let loadedAt = 0
+  let timer
   const page = desktopPage(env)
 
   function contents() {
     return view?.webContents
+  }
+
+  function loadFresh() {
+    const web = contents()
+    if (!web) return false
+    expectViewer = true
+    refreshing = true
+    loaded = true
+    loadedAt = now()
+    onStatus({ state: 'refreshing', page })
+    void web.loadURL(page)
+    return true
+  }
+
+  async function noteLoad() {
+    const web = contents()
+    expectViewer = false
+    let text = ''
+    try { text = await web?.executeJavaScript?.('document.body ? document.body.innerText.slice(0, 800) : ""', true) } catch { text = '' }
+    if (pageSaysExpired(text)) {
+      if (refreshing) {
+        refreshing = false
+        onStatus({ state: 'expired', page })
+        return
+      }
+      loadFresh()
+      return
+    }
+    refreshing = false
+    onStatus({ state: 'live', page })
+  }
+
+  function onNavigate(event, target) {
+    const decision = navigationDecision(target, { expectViewer, page })
+    if (decision === 'allow') return
+    event.preventDefault()
+    if (decision === 'refresh') loadFresh()
   }
 
   function ensure(window) {
@@ -83,12 +158,21 @@ export function createScreenPanel({ WebContentsView, getWindow, env = process.en
       window.contentView.addChildView(view)
       parent = window
       const web = contents()
-      web?.on?.('will-navigate', (event, target) => {
-        if (!desktopNavigationAllowed(target, page)) event.preventDefault()
-      })
+      web?.on?.('will-navigate', onNavigate)
+      web?.on?.('will-redirect', onNavigate)
+      web?.on?.('did-finish-load', () => { void noteLoad() })
       web?.setWindowOpenHandler?.(() => ({ action: 'deny' }))
     }
     return true
+  }
+
+  function watch() {
+    clearInterval(timer)
+    timer = setInterval(() => {
+      if (!view?.visible && view?.isVisible?.() !== true) return
+      if (now() - loadedAt >= TICKET_REFRESH_MS) loadFresh()
+      else void noteLoad()
+    }, 8000)
   }
 
   return {
@@ -98,16 +182,18 @@ export function createScreenPanel({ WebContentsView, getWindow, env = process.en
       const window = getWindow?.()
       if (!bounds || !ensure(window)) return { mode: 'unavailable', zoom, page }
       view.setBounds(bounds)
+      view.visible = true
       view.setVisible(true)
       contents()?.setZoomFactor?.(zoom)
-      if (!loaded) {
-        loaded = true
-        void contents().loadURL(page)
-      }
+      watch()
+      if (!loaded) loadFresh()
       return { mode: 'viewer', zoom, page }
     },
     hide() {
+      if (view) view.visible = false
       view?.setVisible?.(false)
+      clearInterval(timer)
+      timer = undefined
     },
     zoomBy(direction) {
       zoom = stepZoom(zoom, direction)
@@ -115,10 +201,7 @@ export function createScreenPanel({ WebContentsView, getWindow, env = process.en
       return zoom
     },
     reload() {
-      if (!contents()) return false
-      loaded = true
-      void contents().loadURL(page)
-      return true
+      return loadFresh()
     },
   }
 }

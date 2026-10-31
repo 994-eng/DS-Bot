@@ -73,8 +73,15 @@ export const VIRTUAL_SCREEN_CSS = `
 .bt-screen-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;height:44px;padding:0 12px;flex:none;border-bottom:.5px solid var(--bt-line);font-size:12.5px;color:var(--bt-ink)}
 .bt-screen-back{border:0;background:var(--bt-hover);color:var(--bt-ink);border-radius:8px;height:28px;padding:0 10px;font:inherit;font-size:12px;cursor:pointer}
 .bt-screen-back:hover{background:var(--bt-active)}
+.bt-screen-tabs{display:flex;gap:14px;padding:10px 16px 0;flex:none}
+.bt-screen-tabs button{border:0;background:none;color:var(--bt-ink-3);font:inherit;font-size:13px;padding:0 0 8px;cursor:pointer}
+.bt-screen-tabs button[aria-selected=true]{color:var(--bt-ink);box-shadow:inset 0 -2px 0 var(--bt-ink)}
 .bt-screen-zoom{display:flex;gap:6px;align-items:center}
-.bt-screen-stage{flex:1;min-height:240px;margin:0 12px 12px;border:1px solid var(--bt-line);border-radius:12px;background:#111;overflow:hidden}
+.bt-screen-card{margin:16px;width:min(100%,280px);border:1px solid var(--bt-line);border-radius:12px;overflow:hidden;background:var(--bt-card)}
+.bt-screen-thumb{display:block;width:100%;height:158px;border:0;padding:0;background:#111;cursor:pointer}
+.bt-screen-cap{padding:8px 10px;font-size:12px;color:var(--bt-ink-2)}
+.bt-screen-overlay{position:fixed;left:24px;right:24px;bottom:24px;top:48px;z-index:70;display:flex;flex-direction:column;background:#111;border-radius:12px;overflow:hidden}
+.bt-screen-stage{flex:1;min-height:0;background:#111}
 .bt-screen-empty{color:var(--bt-ink-2);font-size:13px;max-width:260px}
 .bt-screen-empty strong{display:block;color:var(--bt-ink);font-size:15px;font-weight:600;margin-bottom:6px}
 .bt-screen-note{color:var(--bt-ink-3);font-size:12px}

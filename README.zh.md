@@ -41,7 +41,7 @@ Windows 应用不会要求登录、注册或填写邮箱。安装 `DeepSeek-Bot-
 | 电脑（Cua spacesd） | `http://38.76.188.71:3211` |
 | 屏幕 | `http://38.76.188.71:8890/desktop` |
 
-**Screen** 在窗口一打开就在右侧。它打开上面的桌面地址，跟随该页的 ticket 跳转到 Cua，并且可以缩放。点画面即可输入和使用指针。查看器拒绝被放进 iframe，所以这里用的是 Electron 视图。浏览器工作用 EGO。桌面用 CUA（spacesd）。插件告诉模型的话在 `docs/harness-identity-prompt.md`。`skills/` 里的技能会打进应用。
+右侧 **电脑** 是一小张预览，标题是这个 Bot 的屏幕。对话和窗口按钮仍然能点。点预览会把桌面放大，并留出标题栏按钮。画面从 `http://38.76.188.71:8890/desktop` 取新的 ticket。查看器过期时会重新打开这个地址，而不是停在 `/viewer/?ticket=`。查看器拒绝被放进 iframe，所以这里用的是 Electron 视图。浏览器工作用 EGO。桌面用 CUA（spacesd）。插件告诉模型的话在 `docs/harness-identity-prompt.md`。`skills/` 里的技能会打进应用。
 
 如果页面写着 `dsh web authentication required`，服务器在启动 `dsh web` 时打印过一条连接地址。在 Windows 机器上把 `DS_BOT_SERVER` 设成那条完整地址再打开应用。不要把这条地址提交进仓库。
 

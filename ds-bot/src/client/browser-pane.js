@@ -734,7 +734,11 @@ export function BotPanel({ pane, leaving, room, overlay, roster, actions, useSes
     view === 'browser' && bot
       ? h(BrowserView, { key: `browser:${active}`, bot, tabId: active, leaving, landed: landed && !settling, actions, useBrowserPages, hold })
       : view === 'screen' && bot
-        ? h(VirtualScreenView, { key: `screen:${bot.id}`, bot, onDetails: () => switchView('details') })
+        ? h(VirtualScreenView, {
+          key: `screen:${bot.id}`, bot, onDetails: () => switchView('details'),
+          onLibrary: () => { if (typeof actions.openFiles === 'function') void actions.openFiles() },
+          onBrowser: () => switchView('browser'),
+        })
         : view === 'side' && sideChat
           ? h('div', { key: `side:${sideChat.id}`, className: 'bt-panel-view' }, h(SideChatView, { subject: pane.id, chat: sideChat, actions: panelActions }))
           : h('div', { key: `details:${pane.id}:${pane.renaming ? 'rename' : ''}:${pane.tab ?? ''}`, className: 'bt-panel-view' },

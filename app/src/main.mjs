@@ -242,7 +242,11 @@ async function start() {
   // A throwaway run (DS_BOT_HOME) keeps its folders where it was told.
   const fixed = Boolean(process.env.DS_BOT_HOME)
   const desktopViewer = createDesktopViewer({ BrowserWindow, getParent: () => mainWindow })
-  const screenPanel = createScreenPanel({ WebContentsView, getWindow: () => mainWindow })
+  const screenPanel = createScreenPanel({
+    WebContentsView,
+    getWindow: () => mainWindow,
+    onStatus: (status) => { mainWindow?.webContents.send('ds-bot:screen-status', status) },
+  })
   ipcMain.handle(IPC.openDesktop, (event, payload) => {
     assertWindow(event)
     const title = typeof payload?.title === 'string' ? payload.title : ''

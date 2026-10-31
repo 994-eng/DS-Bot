@@ -41,7 +41,7 @@ The Windows app does not ask you to log in, register, or enter an email. Install
 | Computer (Cua spacesd) | `http://38.76.188.71:3211` |
 | Screen | `http://38.76.188.71:8890/desktop` |
 
-**Screen** is on the right as soon as the window opens. It loads the desktop page above, follows that page’s ticket redirect onto Cua, and can be zoomed. Click the picture to type and to use the pointer. The viewer refuses to be framed, so the panel is an Electron view, not an iframe. Browser work uses the EGO capability. The desktop uses CUA (spacesd). The identity prompt in `docs/harness-identity-prompt.md` is what the plugin tells the model. The skills in `skills/` ship inside the app.
+**Computer** in the right-hand panel is a small preview labeled with the Bot’s screen. Chat and the window buttons stay usable. Click the preview to open the desktop large, below the caption buttons. The view loads `http://38.76.188.71:8890/desktop` for a fresh ticket. An expired viewer reloads that address instead of keeping `/viewer/?ticket=`. The viewer refuses to be framed, so this is an Electron view, not an iframe. Browser work uses the EGO capability. The desktop uses CUA (spacesd). The identity prompt in `docs/harness-identity-prompt.md` is what the plugin tells the model. The skills in `skills/` ship inside the app.
 
 If the page says `dsh web authentication required`, the server printed a connection URL when `dsh web` started. On the Windows machine set `DS_BOT_SERVER` to that full URL and start the app again. Do not commit the URL.
 

@@ -122,23 +122,32 @@ function updatesBridge() {
   }
 }
 
-// The live desktop, on the right from the moment the server page opens.
-// The in-app Screen stage takes the view only while that stage is on screen.
+// A small preview in the corner. Clicking it opens a large screen below the
+// caption buttons. The page's own thumb or stage owns the view when it has one.
 function installScreenDock() {
   const mount = () => {
     if (document.getElementById('ds-screen-dock')) return
     const caption = process.argv.find(value => value.startsWith('--ds-bot-caption='))
-    const top = caption === undefined ? 0 : Number(caption.slice('--ds-bot-caption='.length)) || 0
+    const top = Math.max(48, caption === undefined ? 0 : Number(caption.slice('--ds-bot-caption='.length)) || 0)
     const style = document.createElement('style')
-    style.textContent = '#ds-screen-dock{position:fixed;top:0;right:0;bottom:0;width:min(560px,50vw);z-index:50;display:flex;flex-direction:column;background:#111;color:#f5f5f5;border-left:1px solid rgba(255,255,255,.12);font:13px/1.3 sans-serif}#ds-screen-dock[hidden]{display:none}#ds-screen-dock .bar{display:flex;align-items:center;gap:8px;height:40px;padding:0 10px;flex:none}#ds-screen-dock button{border:0;background:rgba(255,255,255,.12);color:inherit;border-radius:8px;height:26px;padding:0 8px;cursor:pointer}#ds-screen-dock .stage{flex:1;min-height:0}html.ds-screen-open body{padding-right:min(560px,50vw)}'
+    style.textContent = '#ds-screen-dock{position:fixed;right:16px;bottom:16px;width:260px;z-index:40;display:flex;flex-direction:column;background:#1c1c1e;color:#f5f5f5;border:1px solid rgba(255,255,255,.12);border-radius:12px;overflow:hidden;font:12px/1.3 sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.35)}#ds-screen-dock[hidden]{display:none}#ds-screen-dock .thumb{height:146px;background:#111;cursor:pointer}#ds-screen-dock .cap{padding:8px 10px;color:#c8c8c8}#ds-screen-overlay{position:fixed;left:24px;right:24px;bottom:24px;z-index:60;display:none;flex-direction:column;background:#111;color:#f5f5f5;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.12)}#ds-screen-overlay.open{display:flex}#ds-screen-overlay .bar{display:flex;align-items:center;gap:8px;height:40px;padding:0 10px;flex:none}#ds-screen-overlay button{border:0;background:rgba(255,255,255,.12);color:inherit;border-radius:8px;height:26px;padding:0 8px;cursor:pointer}#ds-screen-overlay .stage{flex:1;min-height:0}'
     document.documentElement.append(style)
     const dock = document.createElement('div')
     dock.id = 'ds-screen-dock'
-    dock.style.top = `${top}px`
+    const thumb = document.createElement('div')
+    thumb.className = 'thumb'
+    const captionLabel = document.createElement('div')
+    captionLabel.className = 'cap'
+    captionLabel.textContent = 'Screen'
+    dock.append(thumb, captionLabel)
+    const overlay = document.createElement('div')
+    overlay.id = 'ds-screen-overlay'
+    overlay.style.top = `${top}px`
     const bar = document.createElement('div')
     bar.className = 'bar'
     const label = document.createElement('span')
     label.textContent = 'Screen'
+    const status = document.createElement('span')
     const zoomLabel = document.createElement('span')
     zoomLabel.textContent = '100%'
     const button = (text, action) => {
@@ -150,19 +159,31 @@ function installScreenDock() {
     }
     const stage = document.createElement('div')
     stage.className = 'stage'
-    bar.append(label, button('−', () => { void zoom(-1) }), zoomLabel, button('+', () => { void zoom(1) }), button('↻', () => { void ipcRenderer.invoke('ds-bot:screen-reload') }))
-    dock.append(bar, stage)
-    document.documentElement.append(dock)
+    let expanded = false
+    const setStatus = (state) => {
+      status.textContent = state === 'refreshing' || state === 'expired' ? 'Refreshing the desktop…' : ''
+    }
+    ipcRenderer.on('ds-bot:screen-status', (_event, payload) => { setStatus(payload?.state) })
+    bar.append(
+      label,
+      status,
+      button('−', () => { void zoom(-1) }),
+      zoomLabel,
+      button('+', () => { void zoom(1) }),
+      button('↻', () => { void ipcRenderer.invoke('ds-bot:screen-reload') }),
+      button('×', () => { expanded = false; place() }),
+    )
+    overlay.append(bar, stage)
+    document.documentElement.append(dock, overlay)
+    thumb.addEventListener('click', () => { expanded = true; place() })
     const place = () => {
-      // The in-app Screen stage owns the view only while it is actually on screen.
-      // Otherwise the desktop stays in this dock from the moment the window opens.
-      const owned = document.querySelector('[data-screen-stage]')
+      const owned = document.querySelector('[data-screen-stage],[data-screen-thumb]')
       const ownedBox = owned?.getBoundingClientRect()
       const pageOwns = ownedBox && ownedBox.width >= 8 && ownedBox.height >= 8
-      dock.hidden = Boolean(pageOwns)
-      document.documentElement.classList.toggle('ds-screen-open', !pageOwns)
+      dock.hidden = expanded || Boolean(pageOwns)
+      overlay.classList.toggle('open', expanded && !pageOwns)
       if (pageOwns) return
-      const box = stage.getBoundingClientRect()
+      const box = (expanded ? stage : thumb).getBoundingClientRect()
       void ipcRenderer.invoke('ds-bot:screen-place', { left: box.left, top: box.top, width: box.width, height: box.height })
     }
     const zoom = async (direction) => {
@@ -171,6 +192,7 @@ function installScreenDock() {
       place()
     }
     new ResizeObserver(place).observe(stage)
+    new ResizeObserver(place).observe(thumb)
     window.addEventListener('resize', place)
     const timer = setInterval(place, 400)
     window.addEventListener('pagehide', () => { clearInterval(timer) }, { once: true })

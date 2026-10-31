@@ -829,6 +829,9 @@ var ZH = {
   "Memory updated. Open {name}'s memory": "记忆已更新，打开 {name} 的记忆",
   // Browser
   Screen: "屏幕",
+  Computer: "电脑",
+  Knowledge: "资料库",
+  "Refreshing the desktop…": "正在刷新桌面…",
   "{name}'s screen": "{name} 的屏幕",
   "Virtual screen": "虚拟屏幕",
   "This Bot has its own screen. Other Bots cannot see or type on it.": "这个 Bot 有自己的屏幕。其他 Bot 看不到，也不能在上面操作。",
@@ -1641,8 +1644,15 @@ var VIRTUAL_SCREEN_CSS = `
 .bt-screen-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;height:44px;padding:0 12px;flex:none;border-bottom:.5px solid var(--bt-line);font-size:12.5px;color:var(--bt-ink)}
 .bt-screen-back{border:0;background:var(--bt-hover);color:var(--bt-ink);border-radius:8px;height:28px;padding:0 10px;font:inherit;font-size:12px;cursor:pointer}
 .bt-screen-back:hover{background:var(--bt-active)}
+.bt-screen-tabs{display:flex;gap:14px;padding:10px 16px 0;flex:none}
+.bt-screen-tabs button{border:0;background:none;color:var(--bt-ink-3);font:inherit;font-size:13px;padding:0 0 8px;cursor:pointer}
+.bt-screen-tabs button[aria-selected=true]{color:var(--bt-ink);box-shadow:inset 0 -2px 0 var(--bt-ink)}
 .bt-screen-zoom{display:flex;gap:6px;align-items:center}
-.bt-screen-stage{flex:1;min-height:240px;margin:0 12px 12px;border:1px solid var(--bt-line);border-radius:12px;background:#111;overflow:hidden}
+.bt-screen-card{margin:16px;width:min(100%,280px);border:1px solid var(--bt-line);border-radius:12px;overflow:hidden;background:var(--bt-card)}
+.bt-screen-thumb{display:block;width:100%;height:158px;border:0;padding:0;background:#111;cursor:pointer}
+.bt-screen-cap{padding:8px 10px;font-size:12px;color:var(--bt-ink-2)}
+.bt-screen-overlay{position:fixed;left:24px;right:24px;bottom:24px;top:48px;z-index:70;display:flex;flex-direction:column;background:#111;border-radius:12px;overflow:hidden}
+.bt-screen-stage{flex:1;min-height:0;background:#111}
 .bt-screen-empty{color:var(--bt-ink-2);font-size:13px;max-width:260px}
 .bt-screen-empty strong{display:block;color:var(--bt-ink);font-size:15px;font-weight:600;margin-bottom:6px}
 .bt-screen-note{color:var(--bt-ink-3);font-size:12px}
@@ -17782,19 +17792,23 @@ function rectsOverlap(a, b) {
 
 // src/client/virtual-screen-view.js
 var import_react48 = require("react");
+var import_react_dom8 = require("react-dom");
 function liveDesktop() {
   const desktop = globalThis.dsBotApp?.desktop;
   return typeof desktop?.open === "function" ? desktop : null;
 }
-function VirtualScreenView({ bot, onDetails }) {
+function VirtualScreenView({ bot, onDetails, onLibrary, onBrowser }) {
   const name = bot?.name || t("Bot");
   const screenId = bot ? screenIdFor(bot.id) : "";
+  const thumb = (0, import_react48.useRef)(null);
   const stage = (0, import_react48.useRef)(null);
   const screen = embeddedScreen();
   const desktop = screen ? null : liveDesktop();
+  const [open, setOpen] = (0, import_react48.useState)(false);
   const [zoom, setZoom] = (0, import_react48.useState)(1);
+  const [status, setStatus] = (0, import_react48.useState)("");
   (0, import_react48.useLayoutEffect)(() => {
-    const node = stage.current;
+    const node = open ? stage.current : thumb.current;
     if (!node || !screen) return void 0;
     const place = () => {
       const box = node.getBoundingClientRect();
@@ -17807,17 +17821,34 @@ function VirtualScreenView({ bot, onDetails }) {
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", place);
+    };
+  }, [bot?.id, open, screen]);
+  (0, import_react48.useEffect)(() => {
+    if (!screen) return void 0;
+    return () => {
       void screen.hide();
     };
-  }, [bot?.id, screen]);
-  (0, import_react48.useEffect)(() => {
-    if (desktop && bot) requestLiveDesktop(desktop, bot);
-  }, [bot?.id, desktop]);
+  }, [screen]);
   const changeZoom = (direction) => {
     void Promise.resolve(screen.zoom(direction)).then((next) => {
       if (typeof next === "number") setZoom(next);
     });
   };
+  const reload = () => {
+    setStatus(t("Refreshing the desktop…"));
+    void Promise.resolve(screen.reload()).finally(() => setStatus(""));
+  };
+  const preview = (0, import_react48.createElement)("button", {
+    ref: thumb,
+    type: "button",
+    className: "bt-screen-thumb",
+    "data-screen-thumb": "",
+    "aria-label": t("{name}'s screen", { name }),
+    onClick: () => {
+      if (screen) setOpen(true);
+      else if (desktop) requestLiveDesktop(desktop, bot);
+    }
+  });
   return (0, import_react48.createElement)(
     "div",
     {
@@ -17826,45 +17857,50 @@ function VirtualScreenView({ bot, onDetails }) {
     },
     (0, import_react48.createElement)(
       "div",
-      { className: "bt-screen-bar" },
-      (0, import_react48.createElement)("span", null, t("{name}'s screen", { name })),
-      screen ? (0, import_react48.createElement)(
-        "span",
-        { className: "bt-screen-zoom" },
-        (0, import_react48.createElement)("button", { type: "button", className: "bt-screen-back", onClick: () => changeZoom(-1), "aria-label": t("Zoom out") }, "−"),
-        (0, import_react48.createElement)("span", null, `${Math.round(zoom * 100)}%`),
-        (0, import_react48.createElement)("button", { type: "button", className: "bt-screen-back", onClick: () => changeZoom(1), "aria-label": t("Zoom in") }, "+"),
-        (0, import_react48.createElement)("button", { type: "button", className: "bt-screen-back", onClick: () => {
-          void screen.reload();
-        } }, t("Reload"))
-      ) : null,
-      (0, import_react48.createElement)("button", { type: "button", className: "bt-screen-back", onClick: onDetails }, t("Details"))
+      { className: "bt-screen-tabs", role: "tablist" },
+      (0, import_react48.createElement)("button", { type: "button", onClick: onDetails }, t("Details")),
+      (0, import_react48.createElement)("button", { type: "button", onClick: onLibrary }, t("Knowledge")),
+      onBrowser ? (0, import_react48.createElement)("button", { type: "button", onClick: onBrowser }, t("Browser")) : null,
+      (0, import_react48.createElement)("button", { type: "button", "aria-selected": "true" }, t("Computer"))
     ),
-    (0, import_react48.createElement)("p", { className: "bt-screen-note" }, screen ? t("Click the desktop to type. Other Bots cannot see or type on this screen.") : t("This Bot has its own screen. Other Bots cannot see or type on it.")),
     (0, import_react48.createElement)(
       "div",
-      {
+      { className: "bt-screen-card" },
+      preview,
+      (0, import_react48.createElement)("div", { className: "bt-screen-cap" }, t("{name}'s screen", { name }))
+    ),
+    open && screen ? (0, import_react_dom8.createPortal)((0, import_react48.createElement)(
+      "div",
+      { className: "bt-screen-overlay" },
+      (0, import_react48.createElement)(
+        "div",
+        { className: "bt-screen-bar" },
+        (0, import_react48.createElement)("span", null, t("{name}'s screen", { name })),
+        (0, import_react48.createElement)("span", null, status),
+        (0, import_react48.createElement)(
+          "span",
+          { className: "bt-screen-zoom" },
+          (0, import_react48.createElement)("button", { type: "button", className: "bt-screen-back", onClick: () => changeZoom(-1), "aria-label": t("Zoom out") }, "−"),
+          (0, import_react48.createElement)("span", null, `${Math.round(zoom * 100)}%`),
+          (0, import_react48.createElement)("button", { type: "button", className: "bt-screen-back", onClick: () => changeZoom(1), "aria-label": t("Zoom in") }, "+"),
+          (0, import_react48.createElement)("button", { type: "button", className: "bt-screen-back", onClick: reload }, t("Reload"))
+        ),
+        (0, import_react48.createElement)("button", { type: "button", className: "bt-screen-back", onClick: () => setOpen(false) }, t("Close"))
+      ),
+      (0, import_react48.createElement)("div", {
         ref: stage,
         className: "bt-screen-stage",
-        "data-screen-stage": screen ? "" : void 0,
+        "data-screen-stage": "",
         role: "region",
         "aria-label": t("Virtual screen")
-      },
-      screen ? null : (0, import_react48.createElement)(
-        "div",
-        { className: "bt-screen-empty" },
-        (0, import_react48.createElement)("strong", null, name),
-        desktop ? (0, import_react48.createElement)("button", { type: "button", className: "bt-screen-back", onClick: () => requestLiveDesktop(desktop, bot) }, t("Open live desktop")) : null,
-        (0, import_react48.createElement)("p", null, desktop ? t("The live desktop is open in its own window.") : t("The live desktop opens in the desktop app.")),
-        (0, import_react48.createElement)("p", { className: "bt-screen-note" }, t("Shared machine"))
-      )
-    )
+      })
+    ), document.body) : null
   );
 }
 
 // src/client/browser-pane.js
 var import_react49 = require("react");
-var import_react_dom8 = require("react-dom");
+var import_react_dom9 = require("react-dom");
 var PANEL_LINGER_MS = 300;
 var WIDTH_KEY = STORAGE.browserWidth;
 var DEFAULT_WIDTH = 520;
@@ -18739,9 +18775,17 @@ function BotPanel({ pane, leaving, room: room2, overlay, roster, actions, useSes
     leaving || overlay ? null : (0, import_react49.createElement)("div", { className: "bt-panel-grip", role: "separator", "aria-orientation": "vertical", "aria-label": t("Resize panel"), onPointerDown: startResize }),
     // Over the whole window while dragging: the cursor stays a resize cursor and the
     // pages underneath (the chat, the guest) see no pointer.
-    dragging ? (0, import_react_dom8.createPortal)((0, import_react49.createElement)("div", { className: "bt-drag-shield", "aria-hidden": true }), document.body) : null,
+    dragging ? (0, import_react_dom9.createPortal)((0, import_react49.createElement)("div", { className: "bt-drag-shield", "aria-hidden": true }), document.body) : null,
     hasStrip ? (0, import_react49.createElement)(PanelStrip, { bot, subject: pane.id, view, ids: tabState.ids, active, sides: sideChats, side: pane.side, canBrowse, reading, onView: switchView, actions: panelActions, useBrowserPages }) : null,
-    view === "browser" && bot ? (0, import_react49.createElement)(BrowserView, { key: `browser:${active}`, bot, tabId: active, leaving, landed: landed && !settling, actions, useBrowserPages, hold }) : view === "screen" && bot ? (0, import_react49.createElement)(VirtualScreenView, { key: `screen:${bot.id}`, bot, onDetails: () => switchView("details") }) : view === "side" && sideChat ? (0, import_react49.createElement)("div", { key: `side:${sideChat.id}`, className: "bt-panel-view" }, (0, import_react49.createElement)(SideChatView, { subject: pane.id, chat: sideChat, actions: panelActions })) : (0, import_react49.createElement)(
+    view === "browser" && bot ? (0, import_react49.createElement)(BrowserView, { key: `browser:${active}`, bot, tabId: active, leaving, landed: landed && !settling, actions, useBrowserPages, hold }) : view === "screen" && bot ? (0, import_react49.createElement)(VirtualScreenView, {
+      key: `screen:${bot.id}`,
+      bot,
+      onDetails: () => switchView("details"),
+      onLibrary: () => {
+        if (typeof actions.openFiles === "function") void actions.openFiles();
+      },
+      onBrowser: () => switchView("browser")
+    }) : view === "side" && sideChat ? (0, import_react49.createElement)("div", { key: `side:${sideChat.id}`, className: "bt-panel-view" }, (0, import_react49.createElement)(SideChatView, { subject: pane.id, chat: sideChat, actions: panelActions })) : (0, import_react49.createElement)(
       "div",
       { key: `details:${pane.id}:${pane.renaming ? "rename" : ""}:${pane.tab ?? ""}`, className: "bt-panel-view" },
       (0, import_react49.createElement)(DetailsDrawer, {
@@ -18886,7 +18930,7 @@ var BROWSER_CSS = `
 
 // src/client/overlays.js
 var import_react50 = require("react");
-var import_react_dom9 = require("react-dom");
+var import_react_dom10 = require("react-dom");
 var DIALOG_EXIT_MS = 160;
 var MENU_EXIT_MS3 = 120;
 function Overlays({ useRoster, useUi, useSessions, useSessionStatus, useActivity, useWork, useRegistry, useBrowserPages, useBrowserTabs, useBrowserHolds, useUpdate, useFrame, useSidebarPref, actions }) {
@@ -18934,14 +18978,14 @@ function Overlays({ useRoster, useUi, useSessions, useSessionStatus, useActivity
   return (0, import_react50.createElement)(
     import_react50.Fragment,
     null,
-    pane ? (0, import_react_dom9.createPortal)((0, import_react50.createElement)(BotPanel, { pane, leaving: shown === null, room: layout.room, overlay: layout.panel === "overlay", roster, actions, useSessions, useSessionStatus, useActivity, useWork, useBrowserTabs, useBrowserPages, useBrowserHolds }), document.body) : null,
-    ui2.newChat ? (0, import_react_dom9.createPortal)((0, import_react50.createElement)(NewChat, { key: ui2.newChat, mode: ui2.newChat, roster, actions }), document.body) : null,
-    ui2.palette ? (0, import_react_dom9.createPortal)((0, import_react50.createElement)(CommandPalette, { key: ui2.palette.token, start: ui2.palette.query, token: ui2.palette.token, roster, actions, useSessions }), document.body) : null,
-    ui2.exchange ? (0, import_react_dom9.createPortal)((0, import_react50.createElement)(ExchangeDialog, { pair: ui2.exchange, roster, actions }), document.body) : null,
-    ui2.voice ? (0, import_react_dom9.createPortal)((0, import_react50.createElement)(VoiceMode, { key: ui2.voice, sessionId: ui2.voice, roster, actions, useSessions, useSessionStatus }), document.body) : null,
-    menu ? (0, import_react_dom9.createPortal)((0, import_react50.createElement)(ContextMenu, { key: `${menu.kind ?? ""}:${menu.id}:${menu.x}:${menu.y}`, menu, roster, actions, leaving: menuLeaving }), document.body) : null,
-    settings ? (0, import_react_dom9.createPortal)((0, import_react50.createElement)(SettingsDialog, { page: settings.page, id: settings.id, roster, actions, useUpdate, leaving: settingsLeaving }), document.body) : null,
-    owner ? (0, import_react_dom9.createPortal)((0, import_react50.createElement)(MemoryDialog, { key: owner.id, owner, actions, leaving: memoryLeaving }), document.body) : null
+    pane ? (0, import_react_dom10.createPortal)((0, import_react50.createElement)(BotPanel, { pane, leaving: shown === null, room: layout.room, overlay: layout.panel === "overlay", roster, actions, useSessions, useSessionStatus, useActivity, useWork, useBrowserTabs, useBrowserPages, useBrowserHolds }), document.body) : null,
+    ui2.newChat ? (0, import_react_dom10.createPortal)((0, import_react50.createElement)(NewChat, { key: ui2.newChat, mode: ui2.newChat, roster, actions }), document.body) : null,
+    ui2.palette ? (0, import_react_dom10.createPortal)((0, import_react50.createElement)(CommandPalette, { key: ui2.palette.token, start: ui2.palette.query, token: ui2.palette.token, roster, actions, useSessions }), document.body) : null,
+    ui2.exchange ? (0, import_react_dom10.createPortal)((0, import_react50.createElement)(ExchangeDialog, { pair: ui2.exchange, roster, actions }), document.body) : null,
+    ui2.voice ? (0, import_react_dom10.createPortal)((0, import_react50.createElement)(VoiceMode, { key: ui2.voice, sessionId: ui2.voice, roster, actions, useSessions, useSessionStatus }), document.body) : null,
+    menu ? (0, import_react_dom10.createPortal)((0, import_react50.createElement)(ContextMenu, { key: `${menu.kind ?? ""}:${menu.id}:${menu.x}:${menu.y}`, menu, roster, actions, leaving: menuLeaving }), document.body) : null,
+    settings ? (0, import_react_dom10.createPortal)((0, import_react50.createElement)(SettingsDialog, { page: settings.page, id: settings.id, roster, actions, useUpdate, leaving: settingsLeaving }), document.body) : null,
+    owner ? (0, import_react_dom10.createPortal)((0, import_react50.createElement)(MemoryDialog, { key: owner.id, owner, actions, leaving: memoryLeaving }), document.body) : null
   );
 }
 

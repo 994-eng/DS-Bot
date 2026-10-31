@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createScreenPanel, desktopNavigationAllowed, desktopPage, stepZoom } from '../src/screen-panel.mjs'
+import { createScreenPanel, desktopNavigationAllowed, desktopPage, navigationDecision, pageSaysExpired, stepZoom } from '../src/screen-panel.mjs'
 
 function fakeView() {
   const views = []
@@ -62,4 +62,56 @@ test('the panel covers the stage with the desktop page and can zoom', () => {
   assert.equal(views[0].visible, false)
   panel.reload()
   assert.equal(views[0].webContents.url, 'http://38.76.188.71:8890/desktop')
+})
+
+test('an expired viewer ticket reloads the desktop page instead of the old ticket', async () => {
+  const page = 'http://38.76.188.71:8890/desktop'
+  const stale = 'http://38.76.188.71:3211/viewer/?ticket=old'
+  assert.equal(navigationDecision(page, { expectViewer: false }), 'allow')
+  assert.equal(navigationDecision(stale, { expectViewer: true }), 'allow')
+  assert.equal(navigationDecision(stale, { expectViewer: false }), 'refresh')
+  assert.equal(pageSaysExpired('This viewer link has expired or is not valid.\nReconnect'), true)
+  assert.equal(pageSaysExpired('Ubuntu desktop'), false)
+  const handlers = {}
+  let body = 'Ubuntu desktop'
+  const statuses = []
+  const made = []
+  class WebContentsView {
+    constructor() {
+      this.bounds = null
+      this.visible = false
+      this.webContents = {
+        url: '',
+        loadURL(url) { this.url = url; return Promise.resolve() },
+        executeJavaScript: async () => body,
+        on(name, fn) { (handlers[name] ??= []).push(fn) },
+        setZoomFactor() {},
+        setWindowOpenHandler() {},
+      }
+      made.push(this)
+    }
+    setBounds(bounds) { this.bounds = bounds }
+    setVisible(visible) { this.visible = visible }
+  }
+  const window = { contentView: { addChildView() {}, removeChildView() {} } }
+  const panel = createScreenPanel({
+    WebContentsView,
+    getWindow: () => window,
+    onStatus: (status) => statuses.push(status.state),
+  })
+  panel.place({ left: 0, top: 80, width: 240, height: 140 })
+  const web = made[0].webContents
+  assert.equal(web.url, page)
+  await handlers['did-finish-load'][0]()
+  assert.equal(statuses.at(-1), 'live')
+  const event = { prevented: false, preventDefault() { this.prevented = true } }
+  handlers['will-navigate'][0](event, stale)
+  assert.equal(event.prevented, true)
+  assert.equal(web.url, page)
+  assert.equal(web.url.includes('ticket='), false)
+  body = 'This viewer link has expired or is not valid. Reconnect'
+  await handlers['did-finish-load'][0]()
+  assert.equal(statuses.includes('refreshing'), true)
+  assert.equal(web.url, page)
+  panel.hide()
 })

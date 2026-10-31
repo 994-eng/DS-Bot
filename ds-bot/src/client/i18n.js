@@ -780,6 +780,9 @@ const ZH = {
 
   // Browser
   Screen: '屏幕',
+  Computer: '电脑',
+  Knowledge: '资料库',
+  'Refreshing the desktop…': '正在刷新桌面…',
   "{name}'s screen": '{name} 的屏幕',
   'Virtual screen': '虚拟屏幕',
   'This Bot has its own screen. Other Bots cannot see or type on it.': '这个 Bot 有自己的屏幕。其他 Bot 看不到，也不能在上面操作。',

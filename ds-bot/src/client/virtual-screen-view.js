@@ -1,4 +1,5 @@
 import { createElement as h, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { t } from './i18n.js'
 import { embeddedScreen, requestLiveDesktop, screenIdFor } from './virtual-screen.js'
 
@@ -7,15 +8,18 @@ function liveDesktop() {
   return typeof desktop?.open === 'function' ? desktop : null
 }
 
-export function VirtualScreenView({ bot, onDetails }) {
+export function VirtualScreenView({ bot, onDetails, onLibrary, onBrowser }) {
   const name = bot?.name || t('Bot')
   const screenId = bot ? screenIdFor(bot.id) : ''
+  const thumb = useRef(null)
   const stage = useRef(null)
   const screen = embeddedScreen()
   const desktop = screen ? null : liveDesktop()
+  const [open, setOpen] = useState(false)
   const [zoom, setZoom] = useState(1)
+  const [status, setStatus] = useState('')
   useLayoutEffect(() => {
-    const node = stage.current
+    const node = open ? stage.current : thumb.current
     if (!node || !screen) return undefined
     const place = () => {
       const box = node.getBoundingClientRect()
@@ -28,44 +32,56 @@ export function VirtualScreenView({ bot, onDetails }) {
     return () => {
       observer.disconnect()
       window.removeEventListener('resize', place)
-      void screen.hide()
     }
-  }, [bot?.id, screen])
+  }, [bot?.id, open, screen])
   useEffect(() => {
-    if (desktop && bot) requestLiveDesktop(desktop, bot)
-  }, [bot?.id, desktop])
+    if (!screen) return undefined
+    return () => { void screen.hide() }
+  }, [screen])
   const changeZoom = (direction) => {
     void Promise.resolve(screen.zoom(direction)).then((next) => {
       if (typeof next === 'number') setZoom(next)
     })
   }
+  const reload = () => {
+    setStatus(t('Refreshing the desktop…'))
+    void Promise.resolve(screen.reload()).finally(() => setStatus(''))
+  }
+  const preview = h('button', {
+    ref: thumb,
+    type: 'button',
+    className: 'bt-screen-thumb',
+    'data-screen-thumb': '',
+    'aria-label': t("{name}'s screen", { name }),
+    onClick: () => { if (screen) setOpen(true); else if (desktop) requestLiveDesktop(desktop, bot) },
+  })
   return h('div', {
     className: 'bt-panel-view bt-screen',
     'data-screen': screenId,
   },
-  h('div', { className: 'bt-screen-bar' },
-    h('span', null, t("{name}'s screen", { name })),
-    screen ? h('span', { className: 'bt-screen-zoom' },
-      h('button', { type: 'button', className: 'bt-screen-back', onClick: () => changeZoom(-1), 'aria-label': t('Zoom out') }, '−'),
-      h('span', null, `${Math.round(zoom * 100)}%`),
-      h('button', { type: 'button', className: 'bt-screen-back', onClick: () => changeZoom(1), 'aria-label': t('Zoom in') }, '+'),
-      h('button', { type: 'button', className: 'bt-screen-back', onClick: () => { void screen.reload() } }, t('Reload'))) : null,
-    h('button', { type: 'button', className: 'bt-screen-back', onClick: onDetails }, t('Details'))),
-  h('p', { className: 'bt-screen-note' }, screen
-    ? t('Click the desktop to type. Other Bots cannot see or type on this screen.')
-    : t('This Bot has its own screen. Other Bots cannot see or type on it.')),
-  h('div', {
-    ref: stage,
-    className: 'bt-screen-stage',
-    'data-screen-stage': screen ? '' : undefined,
-    role: 'region',
-    'aria-label': t('Virtual screen'),
-  },
-  screen ? null : h('div', { className: 'bt-screen-empty' },
-    h('strong', null, name),
-    desktop
-      ? h('button', { type: 'button', className: 'bt-screen-back', onClick: () => requestLiveDesktop(desktop, bot) }, t('Open live desktop'))
-      : null,
-    h('p', null, desktop ? t('The live desktop is open in its own window.') : t('The live desktop opens in the desktop app.')),
-    h('p', { className: 'bt-screen-note' }, t('Shared machine')))))
+  h('div', { className: 'bt-screen-tabs', role: 'tablist' },
+    h('button', { type: 'button', onClick: onDetails }, t('Details')),
+    h('button', { type: 'button', onClick: onLibrary }, t('Knowledge')),
+    onBrowser ? h('button', { type: 'button', onClick: onBrowser }, t('Browser')) : null,
+    h('button', { type: 'button', 'aria-selected': 'true' }, t('Computer'))),
+  h('div', { className: 'bt-screen-card' },
+    preview,
+    h('div', { className: 'bt-screen-cap' }, t("{name}'s screen", { name }))),
+  open && screen ? createPortal(h('div', { className: 'bt-screen-overlay' },
+    h('div', { className: 'bt-screen-bar' },
+      h('span', null, t("{name}'s screen", { name })),
+      h('span', null, status),
+      h('span', { className: 'bt-screen-zoom' },
+        h('button', { type: 'button', className: 'bt-screen-back', onClick: () => changeZoom(-1), 'aria-label': t('Zoom out') }, '−'),
+        h('span', null, `${Math.round(zoom * 100)}%`),
+        h('button', { type: 'button', className: 'bt-screen-back', onClick: () => changeZoom(1), 'aria-label': t('Zoom in') }, '+'),
+        h('button', { type: 'button', className: 'bt-screen-back', onClick: reload }, t('Reload'))),
+      h('button', { type: 'button', className: 'bt-screen-back', onClick: () => setOpen(false) }, t('Close'))),
+    h('div', {
+      ref: stage,
+      className: 'bt-screen-stage',
+      'data-screen-stage': '',
+      role: 'region',
+      'aria-label': t('Virtual screen'),
+    })), document.body) : null)
 }

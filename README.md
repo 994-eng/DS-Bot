@@ -13,6 +13,8 @@ English | [中文](README.zh.md)
 
 DS Bot is a bot plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH). It turns DSH into bots. You create your own bots, then talk and work with them.
 
+This fork's Windows app opens `http://38.76.188.71:3080` on its own. There is no login or registration step. The built-in browser is unchanged. A pull request's **Desktop app package (Windows)** job uploads `DeepSeek-Bot-win-x64`.
+
 ![Say one sentence to Chief, and it sets up the bots and the group chat](docs/images/team.png)
 
 ## Install

@@ -104,6 +104,14 @@ jobs:
           node-version: 24
       - run: npm ci --no-fund --no-audit
       - run: npm run dist
+      - name: Upload the Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: DeepSeek-Bot-win-x64
+          path: app/dist-pack/DeepSeek-Bot-*-win-x64.exe
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
       - name: Check the packaged app
         run: node scripts/check-packed.mjs
       # The runner is a fresh machine, so the installer may run here. It must install for the

@@ -17,6 +17,7 @@ import { applyCookies, CookieImports } from './cookie-import.mjs'
 import { parseCookieFile } from './cookie-parse.mjs'
 import { downloadSaver } from './downloads.mjs'
 import { canonicalExecPath } from './canonical-path.mjs'
+import { isAppServer, serverUrl } from './default-server.mjs'
 import { chooseLocations, localeText, programFolder, saveLocations, text } from './first-run.mjs'
 import { hostPort } from './host-port.mjs'
 import { HostProcess } from './host-process.mjs'
@@ -605,7 +606,7 @@ function createWindow() {
     } : {}),
     webPreferences: {
       preload: join(here, 'preload.cjs'), contextIsolation: true, sandbox: true, webviewTag: true,
-      additionalArguments: [`--ds-bot-origin=${origin}`, ...(win32 ? [`--ds-bot-caption=${String(CAPTION_HEIGHT)}`, ...(mica ? ['--ds-bot-mica'] : [])] : [])],
+      additionalArguments: [`--ds-bot-origin=${serverUrl() ?? origin}`, ...(win32 ? [`--ds-bot-caption=${String(CAPTION_HEIGHT)}`, ...(mica ? ['--ds-bot-mica'] : [])] : [])],
     },
   })
   mainWindow = win
@@ -663,7 +664,7 @@ function createWindow() {
     child.webContents.on('will-redirect', away)
   })
   contents.on('will-navigate', (event, url) => {
-    if (url.startsWith(`${origin}/`)) return
+    if (url.startsWith(`${origin}/`) || isAppServer(url)) return
     event.preventDefault()
     openOutside(url)
   })
@@ -691,6 +692,12 @@ function rebuildWindow() {
 // cookie; the later ones use the plain address, which that cookie carries. The launch URL is
 // used again only when no browser carried it at all, so that a token is never spent twice.
 async function connectHost(win) {
+  const remote = serverUrl()
+  if (remote) {
+    hostReady = true
+    await win.loadURL(`${remote}/`)
+    return
+  }
   if (hostReady) { await win.loadURL(`${origin}/`); return }
   // The first load of the Host decides how this window comes in.
   if (bootstrap !== undefined) await bootstrap
@@ -765,8 +772,10 @@ function setMenu() {
 
 function assertWindow(event) {
   const contents = mainWindow?.webContents
+  const page = event.senderFrame?.url ?? ''
+  const allowed = page.startsWith(`${origin}/`) || isAppServer(page)
   if (contents === undefined || event.sender !== contents || event.senderFrame !== contents.mainFrame
-    || !event.senderFrame.url.startsWith(`${origin}/`)) throw new Error('DeepSeek Bot: rejected IPC from an unknown page')
+    || !allowed) throw new Error('DeepSeek Bot: rejected IPC from an unknown page')
 }
 
 function fromWindow(event) {

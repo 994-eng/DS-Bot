@@ -5,7 +5,7 @@ description: Open a page on the visible desktop and verify it with a screenshot.
 
 # Desktop browser control
 
-Use this when the user must see a page on the Bot’s screen. The default surface is the visual desktop (Cua spacesd), not a headless scrape. DS-Bot is not Hermes. Call the capabilities below. Do not invent a bridge between them.
+Use this when the user must see a page on the Bot’s screen. Open it in Google Chrome on the virtual desktop at `http://38.76.188.71:3211` (shown at `http://38.76.188.71:8890/desktop`). That is the screen in the sidebar. Do not use a headless browser. DS-Bot is not Hermes. EGO is the browser. CUA is the desktop. Call the capabilities below. Do not invent a bridge between them.
 
 ## When to use
 

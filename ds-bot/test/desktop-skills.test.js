@@ -19,7 +19,15 @@ function filesUnder(dir) {
 test('desktop skills exist and name EGO and CUA', () => {
   const root = skillsRoot()
   assert.ok(root)
-  assert.deepEqual(desktopSkillNames(root), ['computer-use-desktop', 'desktop-browser-control'])
+  assert.deepEqual(desktopSkillNames(root), ['computer-use-desktop', 'desktop-browser-control', 'ego-browser'])
+  const cua = readFileSync(join(root, 'computer-use-desktop', 'SKILL.md'), 'utf8')
+  const ego = readFileSync(join(root, 'ego-browser', 'SKILL.md'), 'utf8')
+  for (const text of [cua, ego]) {
+    assert.match(text, /Google Chrome/)
+    assert.match(text, /virtual screen/)
+    assert.match(text, /headless/)
+    assert.match(text, /38\.76\.188\.71/)
+  }
   for (const name of desktopSkillNames(root)) {
     const text = readFileSync(join(root, name, 'SKILL.md'), 'utf8')
     assert.match(text, /EGO/)

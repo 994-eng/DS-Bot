@@ -111,19 +111,19 @@ Upstream files under `ds-bot/src/host/browser/` and `app/src/bot-browser.mjs` ar
 
 ## Default machine and the model prompt
 
-The Windows client opens DSH web at `http://38.76.188.71:3080` (`app/src/default-server.mjs`). Chat uses that server, so the installer does not contain `MIMO_API_KEY`. The plugin registers provider `mimo` (`openai-completions`, `https://mimo.ezlook.top/v1`, models `mimo-v2.6-flash` and `mimo-v2.6-pro`) and leaves the key in the server environment. Screen lays `http://38.76.188.71:8890/desktop` over the panel as a WebContentsView (`app/src/screen-panel.mjs`). The viewer’s frame policy blocks an iframe. Zoom scales that view; pointer and keyboard go to it. A separate window remains available. No root token is put in a URL.
+The Windows client opens DSH web at `http://38.76.188.71:3080` (`app/src/default-server.mjs`). The Windows package reads the Actions secret `MIMO_API_KEY` when it is set. The key is not in git. The plugin registers provider `mimo` (`openai-completions`, `https://mimo.ezlook.top/v1`, models `mimo-v2.6-flash` and `mimo-v2.6-pro`) and leaves the key in the server environment. Screen lays `http://38.76.188.71:8890/desktop` over the panel as a WebContentsView (`app/src/screen-panel.mjs`). The viewer’s frame policy blocks an iframe. Zoom scales that view; pointer and keyboard go to it. A separate window remains available. No root token is put in a URL.
 
-DSH loads [docs/harness-identity-prompt.md](harness-identity-prompt.md) through `ctx.systemPrompt.section` (`fork-environment`, order 630) in `ds-bot/src/host/prompt.js`. GUI work defaults to the visual desktop: a CUA screenshot, an action, then another CUA screenshot. Browser-centric work uses the EGO capability. The plugin does not rewrite a tool call from one into the other.
+DSH loads [docs/harness-identity-prompt.md](harness-identity-prompt.md) through `ctx.systemPrompt.section` (`fork-environment`, order 630) in `ds-bot/src/host/prompt.js`. GUI work defaults to the visual desktop: a CUA screenshot, an action, then another CUA screenshot. Browser-centric work uses the EGO capability, in Google Chrome on that same virtual screen. The plugin does not rewrite a tool call from one into the other.
 
 ## Skills
 
 DSH’s filesystem skill provider reads one level of `SKILL.md` bundles from these roots, in rank order: `<project>/.dsh/skills`, `<project>/.agents/skills`, custom dirs, `<DSH_HOME>/skills` (default `~/.dsh/skills`), and `<agents home>/skills`. The desktop app’s `DSH_HOME` is its own data folder, not `~/.dsh`.
 
-This fork’s skills are `skills/computer-use-desktop/` and `skills/desktop-browser-control/`. On the server:
+This fork’s skills are `skills/computer-use-desktop/` (CUA, the visible desktop), `skills/ego-browser/` (EGO, Google Chrome on that same screen), and `skills/desktop-browser-control/`. Chrome runs on the server virtual desktop, not in a headless browser. On the server:
 
 ```sh
 mkdir -p "$DSH_HOME/skills"
-cp -a skills/computer-use-desktop skills/desktop-browser-control "$DSH_HOME/skills/"
+cp -a skills/computer-use-desktop skills/ego-browser skills/desktop-browser-control "$DSH_HOME/skills/"
 ```
 
 The plugin also registers that `skills/` directory when it sits next to `ds-bot/` (or when `DS_BOT_DESKTOP_SKILLS` points at it), through `ctx.skills.registerProvider` in `ds-bot/src/host/desktop-skills.js`. The model loads a skill with the harness `skill` tool.

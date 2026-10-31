@@ -26,7 +26,7 @@ DS Bot 是一个基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepsee
 
 ```sh
 mkdir -p "$DSH_HOME/skills"
-cp -a skills/computer-use-desktop skills/desktop-browser-control "$DSH_HOME/skills/"
+cp -a skills/computer-use-desktop skills/ego-browser skills/desktop-browser-control "$DSH_HOME/skills/"
 ```
 
 [`vendor/lightvela-computer-use/`](vendor/lightvela-computer-use/) 是 LightVela/Hermes 电脑操作代码的参考副本。DS-Bot 不运行 Hermes。

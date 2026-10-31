@@ -26,7 +26,7 @@ Skills for that loop live in [`skills/`](skills/). DeepSeek Harness loads a `SKI
 
 ```sh
 mkdir -p "$DSH_HOME/skills"
-cp -a skills/computer-use-desktop skills/desktop-browser-control "$DSH_HOME/skills/"
+cp -a skills/computer-use-desktop skills/ego-browser skills/desktop-browser-control "$DSH_HOME/skills/"
 ```
 
 [`vendor/lightvela-computer-use/`](vendor/lightvela-computer-use/) is a reference copy of the LightVela/Hermes computer-use modules. DS-Bot does not run Hermes.

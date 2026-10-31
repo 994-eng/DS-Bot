@@ -17,15 +17,28 @@ if (host !== undefined && location.origin === host) {
     browser: browserBridge(),
     // The app's own updater, for the About row's state and buttons.
     updates: updatesBridge(),
-    // The Cua viewer cannot be framed (frame-ancestors 'none'). This opens it
-    // as its own window. The token stays in the main process.
+    // The Cua viewer cannot be framed (frame-ancestors 'none'). The panel lays a
+    // WebContentsView over its stage. `open` remains for a window when the
+    // panel is not used. The token stays out of the page.
     desktop: {
       open: (payload) => ipcRenderer.invoke('ds-bot:open-desktop', {
         title: typeof payload?.title === 'string' ? payload.title : '',
         botId: typeof payload?.botId === 'string' ? payload.botId : '',
       }),
     },
+    screen: {
+      place: (rect) => ipcRenderer.invoke('ds-bot:screen-place', {
+        left: Number(rect?.left) || 0,
+        top: Number(rect?.top) || 0,
+        width: Number(rect?.width) || 0,
+        height: Number(rect?.height) || 0,
+      }),
+      hide: () => ipcRenderer.invoke('ds-bot:screen-hide'),
+      zoom: (direction) => ipcRenderer.invoke('ds-bot:screen-zoom', Number(direction) < 0 ? -1 : 1),
+      reload: () => ipcRenderer.invoke('ds-bot:screen-reload'),
+    },
   })
+  if (!['127.0.0.1', 'localhost', '::1'].includes(location.hostname)) installScreenDock()
   const caption = process.argv.find(value => value.startsWith('--ds-bot-caption='))
   if (caption !== undefined) {
     ipcRenderer.on('ds-bot:fullscreen', (_event, fullscreen) => {
@@ -107,6 +120,67 @@ function updatesBridge() {
       return () => { listeners.delete(listener) }
     },
   }
+}
+
+// A right-hand desktop for a DSH page that does not draw the Screen stage
+// itself. The page's own stage, when it has one, owns the view instead.
+function installScreenDock() {
+  const mount = () => {
+    if (document.getElementById('ds-screen-dock')) return
+    const caption = process.argv.find(value => value.startsWith('--ds-bot-caption='))
+    const top = caption === undefined ? 0 : Number(caption.slice('--ds-bot-caption='.length)) || 0
+    const style = document.createElement('style')
+    style.textContent = '#ds-screen-dock{position:fixed;right:0;bottom:0;width:min(440px,46vw);z-index:50;display:flex;flex-direction:column;background:#111;color:#f5f5f5;border-left:1px solid rgba(255,255,255,.12);font:13px/1.3 sans-serif}#ds-screen-dock[hidden]{display:none}#ds-screen-dock .bar{display:flex;align-items:center;gap:8px;height:40px;padding:0 10px;flex:none}#ds-screen-dock button{border:0;background:rgba(255,255,255,.12);color:inherit;border-radius:8px;height:26px;padding:0 8px;cursor:pointer}#ds-screen-dock .stage{flex:1;min-height:0}'
+    document.documentElement.append(style)
+    const dock = document.createElement('div')
+    dock.id = 'ds-screen-dock'
+    dock.style.top = `${top}px`
+    const bar = document.createElement('div')
+    bar.className = 'bar'
+    const label = document.createElement('span')
+    label.textContent = 'Screen'
+    const zoomLabel = document.createElement('span')
+    zoomLabel.textContent = '100%'
+    const button = (text, action) => {
+      const node = document.createElement('button')
+      node.type = 'button'
+      node.textContent = text
+      node.addEventListener('click', action)
+      return node
+    }
+    const stage = document.createElement('div')
+    stage.className = 'stage'
+    bar.append(label, button('−', () => { void zoom(-1) }), zoomLabel, button('+', () => { void zoom(1) }), button('↻', () => { void ipcRenderer.invoke('ds-bot:screen-reload') }))
+    dock.append(bar, stage)
+    document.documentElement.append(dock)
+    let handed = false
+    const place = () => {
+      // This fork's own page draws the Screen stage and places the view there.
+      if (document.body?.dataset?.btLayout !== undefined) {
+        dock.hidden = true
+        if (!handed) {
+          handed = true
+          void ipcRenderer.invoke('ds-bot:screen-hide')
+        }
+        return
+      }
+      dock.hidden = false
+      const box = stage.getBoundingClientRect()
+      void ipcRenderer.invoke('ds-bot:screen-place', { left: box.left, top: box.top, width: box.width, height: box.height })
+    }
+    const zoom = async (direction) => {
+      const next = await ipcRenderer.invoke('ds-bot:screen-zoom', direction)
+      if (typeof next === 'number') zoomLabel.textContent = `${Math.round(next * 100)}%`
+      place()
+    }
+    new ResizeObserver(place).observe(stage)
+    window.addEventListener('resize', place)
+    const timer = setInterval(place, 400)
+    window.addEventListener('pagehide', () => { clearInterval(timer) }, { once: true })
+    place()
+  }
+  if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', mount, { once: true })
+  else mount()
 }
 
 function frameless(height, mica) {

@@ -833,6 +833,9 @@ var ZH = {
   "Virtual screen": "虚拟屏幕",
   "This Bot has its own screen. Other Bots cannot see or type on it.": "这个 Bot 有自己的屏幕。其他 Bot 看不到，也不能在上面操作。",
   "Shared machine": "同一台机器",
+  "Zoom out": "缩小",
+  "Zoom in": "放大",
+  "Click the desktop to type. Other Bots cannot see or type on this screen.": "点一下桌面再输入。其他 Bot 看不到这个屏幕，也不能在上面操作。",
   "Open live desktop": "打开实时桌面",
   "The live desktop is open in its own window.": "实时桌面在单独的窗口里。",
   "The live desktop opens in the desktop app.": "实时桌面在桌面应用里打开。",
@@ -1576,7 +1579,12 @@ function countCards(state, sessionId, callIds, delta) {
 function screenIdFor(botId) {
   return `screen:${botId}`;
 }
+function embeddedScreen() {
+  const screen = globalThis.dsBotApp?.screen;
+  return typeof screen?.place === "function" ? screen : null;
+}
 function requestLiveDesktop(desktop, bot) {
+  if (embeddedScreen()) return true;
   if (typeof desktop?.open !== "function") return false;
   void desktop.open({ botId: bot?.id ?? "", title: bot?.name ?? "" });
   return true;
@@ -1633,7 +1641,8 @@ var VIRTUAL_SCREEN_CSS = `
 .bt-screen-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;height:44px;padding:0 12px;flex:none;border-bottom:.5px solid var(--bt-line);font-size:12.5px;color:var(--bt-ink)}
 .bt-screen-back{border:0;background:var(--bt-hover);color:var(--bt-ink);border-radius:8px;height:28px;padding:0 10px;font:inherit;font-size:12px;cursor:pointer}
 .bt-screen-back:hover{background:var(--bt-active)}
-.bt-screen-stage{flex:1;min-height:0;margin:12px;border:1px solid var(--bt-line);border-radius:12px;background:var(--bt-card);display:flex;align-items:center;justify-content:center;text-align:center;padding:16px}
+.bt-screen-zoom{display:flex;gap:6px;align-items:center}
+.bt-screen-stage{flex:1;min-height:240px;margin:0 12px 12px;border:1px solid var(--bt-line);border-radius:12px;background:#111;overflow:hidden}
 .bt-screen-empty{color:var(--bt-ink-2);font-size:13px;max-width:260px}
 .bt-screen-empty strong{display:block;color:var(--bt-ink);font-size:15px;font-weight:600;margin-bottom:6px}
 .bt-screen-note{color:var(--bt-ink-3);font-size:12px}
@@ -17780,10 +17789,35 @@ function liveDesktop() {
 function VirtualScreenView({ bot, onDetails }) {
   const name = bot?.name || t("Bot");
   const screenId = bot ? screenIdFor(bot.id) : "";
-  const desktop = liveDesktop();
+  const stage = (0, import_react48.useRef)(null);
+  const screen = embeddedScreen();
+  const desktop = screen ? null : liveDesktop();
+  const [zoom, setZoom] = (0, import_react48.useState)(1);
+  (0, import_react48.useLayoutEffect)(() => {
+    const node = stage.current;
+    if (!node || !screen) return void 0;
+    const place = () => {
+      const box = node.getBoundingClientRect();
+      void screen.place({ left: box.left, top: box.top, width: box.width, height: box.height });
+    };
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(node);
+    window.addEventListener("resize", place);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", place);
+      void screen.hide();
+    };
+  }, [bot?.id, screen]);
   (0, import_react48.useEffect)(() => {
     if (desktop && bot) requestLiveDesktop(desktop, bot);
-  }, [bot?.id]);
+  }, [bot?.id, desktop]);
+  const changeZoom = (direction) => {
+    void Promise.resolve(screen.zoom(direction)).then((next) => {
+      if (typeof next === "number") setZoom(next);
+    });
+  };
   return (0, import_react48.createElement)(
     "div",
     {
@@ -17794,17 +17828,29 @@ function VirtualScreenView({ bot, onDetails }) {
       "div",
       { className: "bt-screen-bar" },
       (0, import_react48.createElement)("span", null, t("{name}'s screen", { name })),
+      screen ? (0, import_react48.createElement)(
+        "span",
+        { className: "bt-screen-zoom" },
+        (0, import_react48.createElement)("button", { type: "button", className: "bt-screen-back", onClick: () => changeZoom(-1), "aria-label": t("Zoom out") }, "−"),
+        (0, import_react48.createElement)("span", null, `${Math.round(zoom * 100)}%`),
+        (0, import_react48.createElement)("button", { type: "button", className: "bt-screen-back", onClick: () => changeZoom(1), "aria-label": t("Zoom in") }, "+"),
+        (0, import_react48.createElement)("button", { type: "button", className: "bt-screen-back", onClick: () => {
+          void screen.reload();
+        } }, t("Reload"))
+      ) : null,
       (0, import_react48.createElement)("button", { type: "button", className: "bt-screen-back", onClick: onDetails }, t("Details"))
     ),
-    (0, import_react48.createElement)("p", { className: "bt-screen-note" }, t("This Bot has its own screen. Other Bots cannot see or type on it.")),
+    (0, import_react48.createElement)("p", { className: "bt-screen-note" }, screen ? t("Click the desktop to type. Other Bots cannot see or type on this screen.") : t("This Bot has its own screen. Other Bots cannot see or type on it.")),
     (0, import_react48.createElement)(
       "div",
       {
+        ref: stage,
         className: "bt-screen-stage",
+        "data-screen-stage": screen ? "" : void 0,
         role: "region",
         "aria-label": t("Virtual screen")
       },
-      (0, import_react48.createElement)(
+      screen ? null : (0, import_react48.createElement)(
         "div",
         { className: "bt-screen-empty" },
         (0, import_react48.createElement)("strong", null, name),

@@ -5,8 +5,15 @@ export function screenIdFor(botId) {
   return `screen:${botId}`
 }
 
-// The panel cannot frame the Cua viewer. Ask the desktop app to open it.
+// The desktop app lays the live page over `[data-screen-stage]`. Without that
+// bridge, ask it to open a window. Neither path sends a token.
+export function embeddedScreen() {
+  const screen = globalThis.dsBotApp?.screen
+  return typeof screen?.place === 'function' ? screen : null
+}
+
 export function requestLiveDesktop(desktop, bot) {
+  if (embeddedScreen()) return true
   if (typeof desktop?.open !== 'function') return false
   void desktop.open({ botId: bot?.id ?? '', title: bot?.name ?? '' })
   return true
@@ -66,7 +73,8 @@ export const VIRTUAL_SCREEN_CSS = `
 .bt-screen-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;height:44px;padding:0 12px;flex:none;border-bottom:.5px solid var(--bt-line);font-size:12.5px;color:var(--bt-ink)}
 .bt-screen-back{border:0;background:var(--bt-hover);color:var(--bt-ink);border-radius:8px;height:28px;padding:0 10px;font:inherit;font-size:12px;cursor:pointer}
 .bt-screen-back:hover{background:var(--bt-active)}
-.bt-screen-stage{flex:1;min-height:0;margin:12px;border:1px solid var(--bt-line);border-radius:12px;background:var(--bt-card);display:flex;align-items:center;justify-content:center;text-align:center;padding:16px}
+.bt-screen-zoom{display:flex;gap:6px;align-items:center}
+.bt-screen-stage{flex:1;min-height:240px;margin:0 12px 12px;border:1px solid var(--bt-line);border-radius:12px;background:#111;overflow:hidden}
 .bt-screen-empty{color:var(--bt-ink-2);font-size:13px;max-width:260px}
 .bt-screen-empty strong{display:block;color:var(--bt-ink);font-size:15px;font-weight:600;margin-bottom:6px}
 .bt-screen-note{color:var(--bt-ink-3);font-size:12px}

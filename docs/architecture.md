@@ -111,7 +111,7 @@ Upstream files under `ds-bot/src/host/browser/` and `app/src/bot-browser.mjs` ar
 
 ## Default machine and the model prompt
 
-The Windows client hardcodes `http://38.76.188.71:3211` and the viewer at `/viewer/` (`app/src/cloud-backend.mjs`). Choosing Screen opens that viewer in its own window (`app/src/desktop-viewer.mjs`). The viewer’s frame policy blocks an iframe, so the panel does not embed it. A token is read from `CUA_ENV_TOKEN` or `CUA_ENV_TOKEN_FILE` and sent only as a request header.
+The Windows client opens DSH web at `http://38.76.188.71:3080` (`app/src/default-server.mjs`). Chat uses that server, so the installer does not contain `MIMO_API_KEY`. The plugin registers provider `mimo` (`openai-completions`, `https://mimo.ezlook.top/v1`, models `mimo-v2.6-flash` and `mimo-v2.6-pro`) and leaves the key in the server environment. Screen lays `http://38.76.188.71:8890/desktop` over the panel as a WebContentsView (`app/src/screen-panel.mjs`). The viewer’s frame policy blocks an iframe. Zoom scales that view; pointer and keyboard go to it. A separate window remains available. No root token is put in a URL.
 
 DSH loads [docs/harness-identity-prompt.md](harness-identity-prompt.md) through `ctx.systemPrompt.section` (`fork-environment`, order 630) in `ds-bot/src/host/prompt.js`. GUI work defaults to the visual desktop: a CUA screenshot, an action, then another CUA screenshot. Browser-centric work uses the EGO capability. The plugin does not rewrite a tool call from one into the other.
 

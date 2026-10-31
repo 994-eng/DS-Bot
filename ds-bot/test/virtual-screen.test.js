@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createScreenDesk, requestLiveDesktop, screenRail } from '../src/client/virtual-screen.js'
+import { createScreenDesk, embeddedScreen, requestLiveDesktop, screenRail } from '../src/client/virtual-screen.js'
 
 const bots = [
   { id: 'chief', name: 'Chief' },
@@ -16,10 +16,21 @@ test('clicking a Bot selects that Bot’s screen', () => {
 
 test('opening the live desktop asks the app for that Bot and sends no token', () => {
   const calls = []
-  assert.equal(requestLiveDesktop({ open: (payload) => { calls.push(payload) } }, { id: 'chief', name: 'Chief' }), true)
-  assert.deepEqual(calls, [{ botId: 'chief', title: 'Chief' }])
-  assert.equal('token' in calls[0], false)
-  assert.equal(requestLiveDesktop(undefined, { id: 'chief', name: 'Chief' }), false)
+  const previous = globalThis.dsBotApp
+  delete globalThis.dsBotApp
+  try {
+    assert.equal(requestLiveDesktop({ open: (payload) => { calls.push(payload) } }, { id: 'chief', name: 'Chief' }), true)
+    assert.deepEqual(calls, [{ botId: 'chief', title: 'Chief' }])
+    assert.equal('token' in calls[0], false)
+    assert.equal(requestLiveDesktop(undefined, { id: 'chief', name: 'Chief' }), false)
+    globalThis.dsBotApp = { screen: { place() {} } }
+    assert.equal(embeddedScreen() !== null, true)
+    assert.equal(requestLiveDesktop({ open: () => { calls.push('window') } }, { id: 'chief', name: 'Chief' }), true)
+    assert.equal(calls.includes('window'), false)
+  } finally {
+    if (previous === undefined) delete globalThis.dsBotApp
+    else globalThis.dsBotApp = previous
+  }
 })
 
 test('input stays on the Bot that received it', () => {

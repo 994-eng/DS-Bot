@@ -27,6 +27,9 @@ node_modules/
 # Browser-plugin bench output (the HTML report is written beside it and committed).
 /browser-plugins/bench/out/
 
+# Local credentials. The API key is never committed.
+credentials.json
+
 # Local Docker deployment data.
 /docker/data/
 /docker/workspace/

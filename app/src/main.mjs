@@ -27,7 +27,9 @@ import { createShell, SHELL_TEXT } from './shell.mjs'
 import { UPDATE_TEXT, watchReleases, watchUpdates } from './updates.mjs'
 import { createDeferredPrompt } from './update-prompt.mjs'
 import { applyCloudDefaults } from './cloud-backend.mjs'
+import { isAppServer, serverPage, serverUrl } from './default-server.mjs'
 import { createDesktopViewer } from './desktop-viewer.mjs'
+import { createScreenPanel } from './screen-panel.mjs'
 import { CAPTION_HEIGHT, cssColor, micaAvailable, nativeThemeSource } from './window-frame.mjs'
 
 // The packaged client opens the shared desktop with these URLs. No token is set.
@@ -49,6 +51,10 @@ const IPC = {
   appUpdateInstall: 'ds-bot:app-update-install', appUpdateOpen: 'ds-bot:app-update-open',
   appUpdateChanged: 'ds-bot:app-update-changed',
   openDesktop: 'ds-bot:open-desktop',
+  screenPlace: 'ds-bot:screen-place',
+  screenHide: 'ds-bot:screen-hide',
+  screenZoom: 'ds-bot:screen-zoom',
+  screenReload: 'ds-bot:screen-reload',
 }
 // A cookie export larger than this is not a cookie export.
 const IMPORT_FILE_MAX = 32 * 1024 * 1024
@@ -227,14 +233,31 @@ async function start() {
     })
     return host.start()
   })()
-  ready.catch(fail)
+  ready.catch((error) => { if (serverUrl() === undefined) fail(error); else console.error(error) })
   // A throwaway run (DS_BOT_HOME) keeps its folders where it was told.
   const fixed = Boolean(process.env.DS_BOT_HOME)
   const desktopViewer = createDesktopViewer({ BrowserWindow, getParent: () => mainWindow })
+  const screenPanel = createScreenPanel({ WebContentsView, getWindow: () => mainWindow })
   ipcMain.handle(IPC.openDesktop, (event, payload) => {
     assertWindow(event)
     const title = typeof payload?.title === 'string' ? payload.title : ''
     return desktopViewer.open({ title })
+  })
+  ipcMain.handle(IPC.screenPlace, (event, rect) => {
+    assertWindow(event)
+    return screenPanel.place(rect)
+  })
+  ipcMain.handle(IPC.screenHide, (event) => {
+    assertWindow(event)
+    screenPanel.hide()
+  })
+  ipcMain.handle(IPC.screenZoom, (event, direction) => {
+    assertWindow(event)
+    return screenPanel.zoomBy(Number(direction) < 0 ? -1 : 1)
+  })
+  ipcMain.handle(IPC.screenReload, (event) => {
+    assertWindow(event)
+    return screenPanel.reload()
   })
   ipcMain.handle(IPC.dataLocation, (event) => {
     assertWindow(event)
@@ -370,6 +393,14 @@ async function start() {
   // is there once that load came through. The token is good for one browser only: it is spent
   // as soon as a window carries it.
   bootstrap = (async () => {
+    const remote = serverPage()
+    if (remote) {
+      const win = mainWindow
+      if (win === undefined) return false
+      await win.loadURL(remote)
+      hostReady = true
+      return true
+    }
     const { url } = await ready
     launchUrl = url
     const win = mainWindow
@@ -617,7 +648,7 @@ function createWindow() {
     } : {}),
     webPreferences: {
       preload: join(here, 'preload.cjs'), contextIsolation: true, sandbox: true, webviewTag: true,
-      additionalArguments: [`--ds-bot-origin=${origin}`, ...(win32 ? [`--ds-bot-caption=${String(CAPTION_HEIGHT)}`, ...(mica ? ['--ds-bot-mica'] : [])] : [])],
+      additionalArguments: [`--ds-bot-origin=${serverUrl() ?? origin}`, ...(win32 ? [`--ds-bot-caption=${String(CAPTION_HEIGHT)}`, ...(mica ? ['--ds-bot-mica'] : [])] : [])],
     },
   })
   mainWindow = win
@@ -675,7 +706,7 @@ function createWindow() {
     child.webContents.on('will-redirect', away)
   })
   contents.on('will-navigate', (event, url) => {
-    if (url.startsWith(`${origin}/`)) return
+    if (url.startsWith(`${origin}/`) || isAppServer(url)) return
     event.preventDefault()
     openOutside(url)
   })
@@ -688,7 +719,9 @@ function createWindow() {
   // minimized asks for it when it comes back.
   win.on('show', () => { void flushDeferredUpdate().catch((error) => { console.error(error) }) })
   win.on('restore', () => { void flushDeferredUpdate().catch((error) => { console.error(error) }) })
-  void win.loadURL(notePage(text().starting)).catch(() => {})
+  // A remote window goes straight to the server. The starting note would
+  // otherwise replace that page if its load finished later.
+  if (serverPage() === undefined) void win.loadURL(notePage(text().starting)).catch(() => {})
   return win
 }
 
@@ -703,6 +736,12 @@ function rebuildWindow() {
 // cookie; the later ones use the plain address, which that cookie carries. The launch URL is
 // used again only when no browser carried it at all, so that a token is never spent twice.
 async function connectHost(win) {
+  const remote = serverPage()
+  if (remote) {
+    hostReady = true
+    await win.loadURL(remote)
+    return
+  }
   if (hostReady) { await win.loadURL(`${origin}/`); return }
   // The first load of the Host decides how this window comes in.
   if (bootstrap !== undefined) await bootstrap
@@ -777,8 +816,10 @@ function setMenu() {
 
 function assertWindow(event) {
   const contents = mainWindow?.webContents
+  const page = event.senderFrame?.url ?? ''
+  const allowed = page.startsWith(`${origin}/`) || isAppServer(page)
   if (contents === undefined || event.sender !== contents || event.senderFrame !== contents.mainFrame
-    || !event.senderFrame.url.startsWith(`${origin}/`)) throw new Error('DeepSeek Bot: rejected IPC from an unknown page')
+    || !allowed) throw new Error('DeepSeek Bot: rejected IPC from an unknown page')
 }
 
 function fromWindow(event) {

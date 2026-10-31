@@ -116,6 +116,14 @@ jobs:
       - run: npm run dist
       - name: Check the packaged app
         run: node scripts/check-packed.mjs
+      - name: Upload the Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: DeepSeek-Bot-win-x64
+          path: app/dist-pack/DeepSeek-Bot-*-win-x64.exe
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
       # The runner is a fresh machine, so the installer may run here. It must install for the
       # current user only, the installed app must pass the same check, and the uninstaller must
       # remove it again.

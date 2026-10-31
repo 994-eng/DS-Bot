@@ -108,3 +108,12 @@ app/src/virtual-screens.mjs   per-Bot framebuffers on one shared root
 ```
 
 Upstream files under `ds-bot/src/host/browser/` and `app/src/bot-browser.mjs` are the Playwright bridge. Leave them on that job.
+
+## Default machine and the model prompt
+
+The Windows client hardcodes `http://38.76.188.71:3211` and the viewer at `/viewer/` (`app/src/cloud-backend.mjs`). It sets those URLs when they are empty. It does not set a token, and it has no login, registration, or email route.
+
+DSH loads [docs/harness-identity-prompt.md](harness-identity-prompt.md) through `ctx.systemPrompt.section` (`fork-environment`, order 630) in `ds-bot/src/host/prompt.js`. The section tells the model to call the EGO capability for the browser and the CUA capability for screenshots, mouse, and keyboard. The plugin does not rewrite a tool call from one into the other.
+
+CI does not connect to `38.76.188.71`. A test can check the host string, the missing login routes, and the prompt text. A live screenshot, a real spacesd RPC, and an ego Task Space on that machine need the server and are outside CI.
+

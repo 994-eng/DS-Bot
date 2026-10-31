@@ -26,7 +26,11 @@ import { CHECK_PROFILE, PROFILE } from './profile.mjs'
 import { createShell, SHELL_TEXT } from './shell.mjs'
 import { UPDATE_TEXT, watchReleases, watchUpdates } from './updates.mjs'
 import { createDeferredPrompt } from './update-prompt.mjs'
+import { applyCloudDefaults } from './cloud-backend.mjs'
 import { CAPTION_HEIGHT, cssColor, micaAvailable, nativeThemeSource } from './window-frame.mjs'
+
+// The packaged client opens the shared desktop with these URLs. No token is set.
+Object.assign(process.env, applyCloudDefaults(process.env))
 
 const IPC = {
   caption: 'ds-bot:caption-colors', nativeTheme: 'ds-bot:native-theme', fullscreen: 'ds-bot:fullscreen',

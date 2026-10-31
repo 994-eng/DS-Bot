@@ -43,6 +43,8 @@ test('apply registers listeners, tools, and effects in a fixed order', (t) => {
     'on tools/execute',
     'effect ds-bot: agent tool restrict retry',
     'on agent/created',
+    'effect ds-bot: fork environment',
+    'prompt fork-environment 630',
     'effect ds-bot: identity section',
     'prompt bot-identity 640',
     'on agent/pre-step (prepend)',

@@ -1,4 +1,5 @@
 import { classifyLaunch } from '../../computer-use/src/approval.js'
+import { remoteDesktop } from './endpoint.js'
 
 export const CUA_LINUX_IMAGE = 'ghcr.io/trycua/linux:24.04'
 export const SPACESD_PORT = 3211
@@ -28,6 +29,7 @@ export function cloudDesktopSpec({
     },
     viewer: { novncPort },
     fallbackDisplay: ['Xvfb', display, '-screen', '0', '1280x800x24'],
+    remote: remoteDesktop(spacesdPort),
   }
 }
 

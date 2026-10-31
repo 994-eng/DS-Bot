@@ -18,4 +18,4 @@ One Linux machine for the team. Bots share its files and share one [cua-spacesd]
 
 `assignBotScreens(['alpha', 'beta'])` returns one `displayId` (`bot:<id>`) and one sidebar `screenId` (`screen:<id>`) per Bot. The linux-desktop bridge stamps `displayId` onto `ComputerService` calls, so pointer and keyboard for alpha do not land on beta's framebuffer.
 
-The desktop client's right-hand column shows the selected Bot's screen. See `docs/architecture.md`.
+The Windows app uses `http://38.76.188.71:3211` with no login. The env token is not in this repository. See the root README.

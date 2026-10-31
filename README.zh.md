@@ -20,7 +20,26 @@ DS Bot 是一个基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepsee
 - **虚拟屏幕。** 右侧栏可以显示当前 Bot 的屏幕。一台机器、一份共享数据；屏幕彼此分开。
 - **云端桌面。** 在你自己的服务器上跑一台 Linux 图形桌面，用 Cua 的查看器或 noVNC 看，仍由同一个 spacesd 驱动。见 [`extensions/cloud-desktop/`](extensions/cloud-desktop/)。
 
-结构写在 [docs/architecture.md](docs/architecture.md)。这些扩展是可选的。不打开某个 Bot 的屏幕、也不把宿主指到 spacesd 时，插件和桌面应用跟以前一样。
+结构写在 [docs/architecture.md](docs/architecture.md)。模型该用哪一项能力，写在 [docs/harness-identity-prompt.md](docs/harness-identity-prompt.md)。浏览器走 EGO 能力。桌面截图、鼠标和键盘走 CUA 能力。插件里没有把一种工具调用改写成另一种的代码。
+
+## Windows 客户端
+
+Windows 应用不会要求登录、注册或填写邮箱。安装 `DeepSeek-Bot-<版本>-win-x64.exe` 后直接打开。它已经指向这台共享桌面：
+
+| | |
+|---|---|
+| 电脑（Cua spacesd） | `http://38.76.188.71:3211` |
+| 查看器 | `http://38.76.188.71:3211/viewer/` |
+
+用浏览器打开查看器就能看到那台机器。在应用里打开一个 Bot，选 **Screen**，看到的是这个 Bot 自己的屏幕。桌面操作挂上 **cua** 能力，浏览器挂上 **ego** 能力。中间没有账户这一步。
+
+拉取请求会在 Windows 上打安装包，工作流产物名叫 `DeepSeek-Bot-win-x64`。在 Windows 上自己构建：
+
+```powershell
+.\scripts\build-windows-client.ps1
+```
+
+安装包在 `app\dist-pack\DeepSeek-Bot-<版本>-win-x64.exe`。CI 不会去连 `38.76.188.71`，所以自动化测试里没有那台机器的实时画面。
 
 ![和 Chief 说一句话，它就把 bot 和群聊建好](docs/images/team.zh.png)
 

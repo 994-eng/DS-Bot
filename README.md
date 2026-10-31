@@ -20,7 +20,26 @@ This repository is the [994-eng/DS-Bot](https://github.com/994-eng/DS-Bot) fork 
 - **Virtual screens.** The right-hand column can show the selected Bot's screen. One machine and one shared data directory; the screens stay separate.
 - **Cloud desktop.** A Linux GUI you run on a server, viewed in the Cua viewer or over noVNC, driven by the same spacesd. See [`extensions/cloud-desktop/`](extensions/cloud-desktop/).
 
-The layout is described in [docs/architecture.md](docs/architecture.md). The extensions are optional. The plugin and the desktop app behave as before until you open a Bot's screen or point the host at a spacesd.
+The layout is described in [docs/architecture.md](docs/architecture.md). The model is told which capability to call in [docs/harness-identity-prompt.md](docs/harness-identity-prompt.md). Browser work is the EGO capability. Desktop screenshots, mouse, and keyboard are the CUA capability. Nothing in the plugin remaps one tool call into the other.
+
+## Windows client
+
+The Windows app does not ask you to log in, register, or enter an email. Install `DeepSeek-Bot-<version>-win-x64.exe` and open it. It already points at the shared desktop:
+
+| | |
+|---|---|
+| Computer (Cua spacesd) | `http://38.76.188.71:3211` |
+| Viewer | `http://38.76.188.71:3211/viewer/` |
+
+Open the viewer in a browser to watch the machine. In the app, open a Bot and choose **Screen** to see that Bot's display. Attach the **cua** capability for desktop control and the **ego** capability for the browser. There is no account step in between.
+
+A pull request builds the installer on Windows. The workflow run's artifact is `DeepSeek-Bot-win-x64`. To build it yourself on Windows, from this checkout:
+
+```powershell
+.\scripts\build-windows-client.ps1
+```
+
+The installer is `app\dist-pack\DeepSeek-Bot-<version>-win-x64.exe`. CI does not open `38.76.188.71`, so a live screenshot from that machine is not part of the automated run.
 
 ![Say one sentence to Chief, and it sets up the bots and the group chat](docs/images/team.png)
 

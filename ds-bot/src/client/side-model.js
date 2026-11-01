@@ -160,6 +160,7 @@ export function stripMenuKeys({ canBrowse, canTerminal, canFiles }) {
 export function drawerMenuKeys({ bot, room, canBrowse, canTerminal, canFiles }) {
   const keys = []
   if (bot === true && canBrowse === true) keys.push('browser')
+  if (bot === true) keys.push('screen')
   if (bot === true) keys.push('side')
   const tail = []
   if (bot === true || room === true) {

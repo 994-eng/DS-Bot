@@ -2,7 +2,7 @@
 // The window loads the Host's loopback address as DSH Web does: DSH's sign-in sends the page's
 // origin as the address the browser comes back to, and accepts only a loopback one.
 import { app, BrowserWindow, WebContentsView, dialog, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, session, shell as electronShell, Tray } from 'electron'
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { readFile, rm } from 'node:fs/promises'
 import { release } from 'node:os'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
@@ -26,7 +26,15 @@ import { CHECK_PROFILE, PROFILE } from './profile.mjs'
 import { createShell, SHELL_TEXT } from './shell.mjs'
 import { UPDATE_TEXT, watchReleases, watchUpdates } from './updates.mjs'
 import { createDeferredPrompt } from './update-prompt.mjs'
+import { applyCloudDefaults } from './cloud-backend.mjs'
+import { isAppServer, serverPage, serverUrl } from './default-server.mjs'
+import { applyMimoEnv, mimoCredentialPaths } from './mimo.mjs'
+import { packedCredentialPaths, readDesktopToken } from './desktop-viewer.mjs'
+import { createNativeDesktop } from './native-desktop.mjs'
 import { CAPTION_HEIGHT, cssColor, micaAvailable, nativeThemeSource } from './window-frame.mjs'
+
+// The packaged client opens the shared desktop with these URLs. No token is set.
+Object.assign(process.env, applyCloudDefaults(process.env))
 
 const IPC = {
   caption: 'ds-bot:caption-colors', nativeTheme: 'ds-bot:native-theme', fullscreen: 'ds-bot:fullscreen',
@@ -43,6 +51,12 @@ const IPC = {
   appUpdateState: 'ds-bot:app-update-state', appUpdateCheck: 'ds-bot:app-update-check',
   appUpdateInstall: 'ds-bot:app-update-install', appUpdateOpen: 'ds-bot:app-update-open',
   appUpdateChanged: 'ds-bot:app-update-changed',
+  openDesktop: 'ds-bot:open-desktop',
+  screenShow: 'ds-bot:screen-show',
+  screenHide: 'ds-bot:screen-hide',
+  screenPointer: 'ds-bot:screen-pointer',
+  screenType: 'ds-bot:screen-type',
+  screenFrame: 'ds-bot:screen-frame',
 }
 // A cookie export larger than this is not a cookie export.
 const IMPORT_FILE_MAX = 32 * 1024 * 1024
@@ -177,13 +191,22 @@ async function start() {
   places = { dataDir: where.dataDir, workspace: where.workspace }
   const port = await hostPort(join(app.getPath('userData'), 'host-port.json'))
   origin = `http://127.0.0.1:${String(port)}`
+  const resources = typeof process.resourcesPath === 'string' ? process.resourcesPath : ''
+  const packedKeys = packedCredentialPaths({
+    resourcesPath: process.resourcesPath,
+    execPath: process.execPath,
+    appPath: app.getAppPath(),
+  })
+  if (packedKeys[0]) process.env.CUA_PACKED_CREDENTIALS = packedKeys[0]
+  const skillDir = resources === '' ? '' : join(resources, 'desktop-skills')
+  applyMimoEnv(process.env, { readFileSync, paths: [...packedKeys, ...mimoCredentialPaths(process.env)] })
   const pnpm = join(app.getAppPath(), 'node_modules', 'pnpm', 'bin', 'pnpm.mjs')
   const profileDir = join(where.dataDir, 'profiles', PROFILE)
   mkdirSync(profileDir, { recursive: true })
   const newHost = () => new HostProcess({
     entry: join(here, 'host.mjs'),
     cwd: profileDir,
-    env: { ...process.env, DSH_HOME: where.dataDir, DS_BOT_PORT: String(port), DS_BOT_APP: '1', DS_BOT_USER_DSH_HOME: userDshHome(), DS_BOT_RUNTIME_DIR: app.isPackaged ? process.resourcesPath : join(here, '..', 'build', 'runtime'), ...(where.workspace ? { DS_BOT_WORKSPACE: where.workspace } : {}) },
+    env: { ...process.env, DSH_HOME: where.dataDir, DS_BOT_PORT: String(port), DS_BOT_APP: '1', DS_BOT_USER_DSH_HOME: userDshHome(), DS_BOT_RUNTIME_DIR: app.isPackaged ? process.resourcesPath : join(here, '..', 'build', 'runtime'), ...(where.workspace ? { DS_BOT_WORKSPACE: where.workspace } : {}), ...(skillDir !== '' && existsSync(skillDir) ? { DS_BOT_DESKTOP_SKILLS: skillDir } : {}) },
     pnpm,
     onFailure: fail,
   })
@@ -221,9 +244,21 @@ async function start() {
     })
     return host.start()
   })()
-  ready.catch(fail)
+  ready.catch((error) => { if (serverUrl() === undefined) fail(error); else console.error(error) })
   // A throwaway run (DS_BOT_HOME) keeps its folders where it was told.
   const fixed = Boolean(process.env.DS_BOT_HOME)
+  let screenViewers = 0
+  const nativeDesktop = createNativeDesktop({
+    readToken: readDesktopToken,
+    onFrame: (frame) => { mainWindow?.webContents.send(IPC.screenFrame, frame) },
+  })
+  const showScreen = () => { screenViewers += 1; nativeDesktop.start(); return { base: nativeDesktop.base } }
+  const hideScreen = () => { screenViewers = Math.max(0, screenViewers - 1); if (screenViewers === 0) nativeDesktop.stop() }
+  ipcMain.handle(IPC.openDesktop, (event) => { assertWindow(event); return showScreen() })
+  ipcMain.handle(IPC.screenShow, (event) => { assertWindow(event); return showScreen() })
+  ipcMain.handle(IPC.screenHide, (event) => { assertWindow(event); hideScreen() })
+  ipcMain.handle(IPC.screenPointer, (event, point) => { assertWindow(event); return nativeDesktop.pointer(point) })
+  ipcMain.handle(IPC.screenType, (event, text) => { assertWindow(event); return nativeDesktop.type(typeof text === 'string' ? text : '') })
   ipcMain.handle(IPC.dataLocation, (event) => {
     assertWindow(event)
     return { path: places.dataDir, fixed }
@@ -358,6 +393,14 @@ async function start() {
   // is there once that load came through. The token is good for one browser only: it is spent
   // as soon as a window carries it.
   bootstrap = (async () => {
+    const remote = serverPage()
+    if (remote) {
+      const win = mainWindow
+      if (win === undefined) return false
+      await win.loadURL(remote)
+      hostReady = true
+      return true
+    }
     const { url } = await ready
     launchUrl = url
     const win = mainWindow
@@ -605,7 +648,7 @@ function createWindow() {
     } : {}),
     webPreferences: {
       preload: join(here, 'preload.cjs'), contextIsolation: true, sandbox: true, webviewTag: true,
-      additionalArguments: [`--ds-bot-origin=${origin}`, ...(win32 ? [`--ds-bot-caption=${String(CAPTION_HEIGHT)}`, ...(mica ? ['--ds-bot-mica'] : [])] : [])],
+      additionalArguments: [`--ds-bot-origin=${serverUrl() ?? origin}`, ...(win32 ? [`--ds-bot-caption=${String(CAPTION_HEIGHT)}`, ...(mica ? ['--ds-bot-mica'] : [])] : [])],
     },
   })
   mainWindow = win
@@ -663,7 +706,7 @@ function createWindow() {
     child.webContents.on('will-redirect', away)
   })
   contents.on('will-navigate', (event, url) => {
-    if (url.startsWith(`${origin}/`)) return
+    if (url.startsWith(`${origin}/`) || isAppServer(url)) return
     event.preventDefault()
     openOutside(url)
   })
@@ -676,7 +719,9 @@ function createWindow() {
   // minimized asks for it when it comes back.
   win.on('show', () => { void flushDeferredUpdate().catch((error) => { console.error(error) }) })
   win.on('restore', () => { void flushDeferredUpdate().catch((error) => { console.error(error) }) })
-  void win.loadURL(notePage(text().starting)).catch(() => {})
+  // A remote window goes straight to the server. The starting note would
+  // otherwise replace that page if its load finished later.
+  if (serverPage() === undefined) void win.loadURL(notePage(text().starting)).catch(() => {})
   return win
 }
 
@@ -691,6 +736,12 @@ function rebuildWindow() {
 // cookie; the later ones use the plain address, which that cookie carries. The launch URL is
 // used again only when no browser carried it at all, so that a token is never spent twice.
 async function connectHost(win) {
+  const remote = serverPage()
+  if (remote) {
+    hostReady = true
+    await win.loadURL(remote)
+    return
+  }
   if (hostReady) { await win.loadURL(`${origin}/`); return }
   // The first load of the Host decides how this window comes in.
   if (bootstrap !== undefined) await bootstrap
@@ -765,8 +816,10 @@ function setMenu() {
 
 function assertWindow(event) {
   const contents = mainWindow?.webContents
+  const page = event.senderFrame?.url ?? ''
+  const allowed = page.startsWith(`${origin}/`) || isAppServer(page)
   if (contents === undefined || event.sender !== contents || event.senderFrame !== contents.mainFrame
-    || !event.senderFrame.url.startsWith(`${origin}/`)) throw new Error('DeepSeek Bot: rejected IPC from an unknown page')
+    || !allowed) throw new Error('DeepSeek Bot: rejected IPC from an unknown page')
 }
 
 function fromWindow(event) {

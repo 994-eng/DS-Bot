@@ -39,3 +39,15 @@ DS Bot 是一支持久化的 Bot 团队，基于 [DeepSeek Harness](https://gith
 ## 谁来定方向
 
 产品方向、已定设计的改动、协作规则、发版和架构由维护者决定。其他工作谁都可以做，流程见 [CONTRIBUTING](../CONTRIBUTING.zh.md#协作方式)。
+
+## 这个 fork
+
+[994-eng/DS-Bot](https://github.com/994-eng/DS-Bot) 这个 fork 保留 DS Bot 的团队，并加上一套更接近 Grok Bot 和 Groupbot 的桌面。它仍是 Apache 2.0 下的独立项目，不是 DeepSeek 的产品，也不改 DeepSeek Harness。多出来的四块是：
+
+1. **Cua spacesd** 是 Linux 上操作电脑的底层。Agent 用 3211 端口的 gRPC 截图、移动指针、敲键盘。输入由 Cua Driver 执行。见 [架构](architecture.md) 和 [`extensions/linux-desktop/`](../extensions/linux-desktop/)。
+2. **ego(lite)** 是面向 Agent 的浏览器：一个 Chromium 进程，每个 Bot 一个 Task Space。需要开发者工具或网络记录时走 CDP。Playwright 仍是退路，也仍是桌面应用里现有的浏览器桥。
+3. **每个 Bot 一块虚拟屏幕。** 右侧栏显示当前 Bot 的屏幕。机器和文件是共用的，屏幕不是。
+4. **云端桌面。** 用户自己的服务器上跑一台 Linux 图形桌面（Cua 的 Linux 镜像，或 Xvfb 加上 spacesd），用 Cua 的查看器或 noVNC 看。Agent 通过 spacesd 操作它。
+
+团队的聊天和记忆仍在 DS Bot 自己的数据目录里。云端桌面是用户另外掌管的一台机器。它的环境令牌不进聊天、不进能力、也不进网址。细节和还没做完的部分见 [架构](architecture.md)。
+

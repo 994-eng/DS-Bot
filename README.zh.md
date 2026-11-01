@@ -13,6 +13,59 @@
 
 DS Bot 是一个基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（简称 dsh）的 bot 插件，插件将 dsh 改造为 bot 形式。你可以与自己创建的 bot 交流、工作。
 
+这个仓库是 [Fei2411/DS-Bot](https://github.com/Fei2411/DS-Bot) 的 [994-eng/DS-Bot](https://github.com/994-eng/DS-Bot) fork。它保留原项目的 Apache 2.0 许可、版权和声明：DS Bot 不是 DeepSeek 的官方产品。这个 fork 想把桌面客户端做得更接近 Grok Bot 和 Groupbot。四块扩展承担这件事，都不改 DeepSeek Harness：
+
+- **Linux 桌面。** Agent 通过 [Cua spacesd](https://cua.ai/docs/cua-sdk/guides/spacesd)（3211 端口的 gRPC）操作图形会话：截图、鼠标、键盘、窗口、无障碍树。见 [`extensions/linux-desktop/`](extensions/linux-desktop/)。
+- **Agent 浏览器。** [ego(lite)](https://github.com/citrolabs/ego-lite) 让每个 Bot 在同一个 Chromium 里有自己的 Task Space。开发者工具和打码后的网络记录走 CDP。Playwright 仍是退路，也仍是桌面应用里现有的浏览器桥。见 [`extensions/windows-browser/`](extensions/windows-browser/)。
+- **虚拟屏幕。** 右侧栏可以显示当前 Bot 的屏幕。一台机器、一份共享数据；屏幕彼此分开。
+- **云端桌面。** 在你自己的服务器上跑一台 Linux 图形桌面，用 Cua 的查看器或 noVNC 看，仍由同一个 spacesd 驱动。见 [`extensions/cloud-desktop/`](extensions/cloud-desktop/)。
+
+结构写在 [docs/architecture.md](docs/architecture.md)。模型该用哪一项能力，写在 [docs/harness-identity-prompt.md](docs/harness-identity-prompt.md)。图形界面默认走看得见的桌面：CUA 截图、操作、再截图核对。浏览器走 EGO 能力。插件里没有把一种工具调用改写成另一种的代码。
+
+这些步骤的技能在 [`skills/`](skills/)。DeepSeek Harness 从 `$DSH_HOME/skills` 读取带 `SKILL.md` 的目录（桌面应用用它自己的数据目录）。在服务器上复制：
+
+```sh
+mkdir -p "$DSH_HOME/skills"
+cp -a skills/computer-use-desktop skills/ego-browser skills/desktop-browser-control "$DSH_HOME/skills/"
+```
+
+[`vendor/lightvela-computer-use/`](vendor/lightvela-computer-use/) 是 LightVela/Hermes 电脑操作代码的参考副本。DS-Bot 不运行 Hermes。
+
+## Windows 客户端
+
+Windows 应用不会要求登录、注册或填写邮箱。安装 `DeepSeek-Bot-<版本>-win-x64.exe` 后直接打开。窗口打开服务器上的 DeepSeek Harness：`http://38.76.188.71:3080`，右侧已经是桌面。仓库里没有 API 密钥。用 `MIMO_API_KEY` 这个 secret 打出来的安装包会带上这把密钥。
+
+| | |
+|---|---|
+| DSH 网页（对话、模型菜单） | `http://38.76.188.71:3080` |
+| 电脑（Cua spacesd） | `http://38.76.188.71:3211` |
+| 屏幕 | `http://38.76.188.71:8890/desktop` |
+
+右侧 **电脑** 是一小张预览，标题是这个 Bot 的屏幕。对话和窗口按钮仍然能点。点预览会把桌面放大，并留出标题栏按钮。画面是本应用直接向 Cua spacesd `http://38.76.188.71:3211` 要的截图，鼠标和键盘也发到同一个接口。不打开 HTML 查看器，帧也不经过 8890 或 DeepSeek Harness。Windows 打包步骤读取 Actions secret `CUA_ENV_TOKEN`，有值时和 MiMo 密钥一起写进安装包。在仓库的 Settings → Secrets and variables → Actions 里新建这个 secret，值用服务器上 `/etc/ds-bot/cua-env-token` 的内容。不要提交进 git。电脑上的 `CUA_ENV_TOKEN` 和 `CUA_ENV_TOKEN_FILE` 仍然优先于安装包里的值。令牌只放在请求头里，不进网址。浏览器工作用 EGO。桌面用 CUA。插件告诉模型的话在 `docs/harness-identity-prompt.md`。`skills/` 里的技能会打进应用。
+
+如果页面写着 `dsh web authentication required`，服务器在启动 `dsh web` 时打印过一条连接地址。在 Windows 机器上把 `DS_BOT_SERVER` 设成那条完整地址再打开应用。不要把这条地址提交进仓库。
+
+`DS_BOT_SERVER=local` 会改回应用自带的 Host，打包检查用的就是这个。
+
+## MiMo
+
+模型路由是 MiMo，OpenAI 兼容，地址 `https://mimo.ezlook.top/v1`。提供方 id 是 `mimo`。
+
+| 模型 | 作用 |
+|---|---|
+| `mimo-v2.6-flash` | 默认 |
+| `mimo-v2.6-pro` | 在模型菜单里 |
+
+路由的凭据名是 `MIMO_API_KEY`。不需要再填提供方表单。密钥不在 git 里。Windows 打包步骤读取 GitHub Actions secret `MIMO_API_KEY`，有值时写进安装包。要让打出来的应用自己调用 MiMo，先在仓库里设置这个 secret。`:3080` 上的服务器也可以用同一个变量。secret 为空也能打包：路由在，密钥不在。
+
+已经装过的副本要换新的 Windows 安装包才会变成这样。GitHub Actions 的 **Desktop app package (Windows)** 会上传名为 `DeepSeek-Bot-win-x64` 的产物。在 Windows 上自己构建：
+
+```powershell
+.\scripts\build-windows-client.ps1
+```
+
+安装包在 `app\dist-pack\DeepSeek-Bot-<版本>-win-x64.exe`。打好之后不要再改这个文件，NSIS 会校验它。同一次任务还会上传 `DeepSeek-Bot-win-x64-portable`，是未打包目录的 zip。里面的 `resources\mimo-credentials.json` 在打包时由 `MIMO_API_KEY` 和 `CUA_ENV_TOKEN` 两个 secret 写入。解压后运行 `DeepSeek Bot.exe`。CI 不会去连 `38.76.188.71`，所以自动化测试里没有那台机器的实时画面。
+
 ![和 Chief 说一句话，它就把 bot 和群聊建好](docs/images/team.zh.png)
 
 ## 安装

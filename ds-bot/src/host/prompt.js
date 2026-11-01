@@ -1,5 +1,6 @@
 // Prompt: one section whose text depends only on the rendering Session's own Bot
 // record, so the prefix stays byte-stable across turns and roster changes.
+import { FORK_IDENTITY_PROMPT } from './fork-identity.js'
 
 const TEAM_RULES = [
   '## How your Bot team works',
@@ -63,6 +64,15 @@ export function install(rt) {
     }
     return ''
   }
+
+  // The fork's stack rules. DSH inserts this by order, ahead of the Bot's own
+  // identity. The text names which capability to call; it does not route tools.
+  ctx.effect(() => ctx.systemPrompt.section({
+    name: 'fork-environment',
+    order: 630,
+    interpolate: false,
+    text: () => FORK_IDENTITY_PROMPT,
+  }), 'ds-bot: fork environment')
 
   ctx.effect(() => ctx.systemPrompt.section({
     name: 'bot-identity',

@@ -17,7 +17,14 @@ if (host !== undefined && location.origin === host) {
     browser: browserBridge(),
     // The app's own updater, for the About row's state and buttons.
     updates: updatesBridge(),
+    // Frames and clicks go to spacesd in the main process. This page only draws
+    // them. It never loads the ticket viewer.
+    desktop: {
+      open: () => ipcRenderer.invoke('ds-bot:screen-show'),
+    },
+    screen: screenBridge(),
   })
+  if (!['127.0.0.1', 'localhost', '::1'].includes(location.hostname)) installScreenDock()
   const caption = process.argv.find(value => value.startsWith('--ds-bot-caption='))
   if (caption !== undefined) {
     ipcRenderer.on('ds-bot:fullscreen', (_event, fullscreen) => {
@@ -99,6 +106,119 @@ function updatesBridge() {
       return () => { listeners.delete(listener) }
     },
   }
+}
+
+// A small preview in the corner. Clicking it opens a large screen below the
+// caption buttons. The page's own thumb or stage owns the view when it has one.
+function screenBridge() {
+  const listeners = new Set()
+  ipcRenderer.on('ds-bot:screen-frame', (_event, frame) => {
+    for (const listener of listeners) {
+      try { listener(frame) } catch (error) { console.error(error) }
+    }
+  })
+  return {
+    show: () => ipcRenderer.invoke('ds-bot:screen-show'),
+    hide: () => ipcRenderer.invoke('ds-bot:screen-hide'),
+    pointer: (point) => ipcRenderer.invoke('ds-bot:screen-pointer', point),
+    type: (text) => ipcRenderer.invoke('ds-bot:screen-type', String(text ?? '')),
+    subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener) },
+  }
+}
+
+function paintFrame(canvas, frame) {
+  if (!canvas || frame?.state !== 'frame' || typeof frame.image !== 'string') return
+  const image = new Image()
+  image.onload = () => {
+    canvas.width = frame.width || image.naturalWidth
+    canvas.height = frame.height || image.naturalHeight
+    canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height)
+  }
+  image.src = `data:image/png;base64,${frame.image}`
+}
+
+function installScreenDock() {
+  const mount = () => {
+    if (document.getElementById('ds-screen-dock')) return
+    const caption = process.argv.find(value => value.startsWith('--ds-bot-caption='))
+    const top = Math.max(48, caption === undefined ? 0 : Number(caption.slice('--ds-bot-caption='.length)) || 0)
+    const style = document.createElement('style')
+    style.textContent = '#ds-screen-dock{position:fixed;right:16px;bottom:16px;width:260px;z-index:40;display:flex;flex-direction:column;background:#1c1c1e;color:#f5f5f5;border:1px solid rgba(255,255,255,.12);border-radius:12px;overflow:hidden;font:12px/1.3 sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.35)}#ds-screen-dock[hidden]{display:none}#ds-screen-dock .thumb{height:146px;background:#111;cursor:pointer}#ds-screen-dock .cap{padding:8px 10px;color:#c8c8c8}#ds-screen-overlay{position:fixed;left:24px;right:24px;bottom:24px;z-index:60;display:none;flex-direction:column;background:#111;color:#f5f5f5;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.12)}#ds-screen-overlay.open{display:flex}#ds-screen-overlay .bar{display:flex;align-items:center;gap:8px;height:40px;padding:0 10px;flex:none}#ds-screen-overlay button{border:0;background:rgba(255,255,255,.12);color:inherit;border-radius:8px;height:26px;padding:0 8px;cursor:pointer}#ds-screen-overlay .stage{flex:1;min-height:0}'
+    document.documentElement.append(style)
+    const dock = document.createElement('div')
+    dock.id = 'ds-screen-dock'
+    const thumb = document.createElement('canvas')
+    thumb.className = 'thumb'
+    const captionLabel = document.createElement('div')
+    captionLabel.className = 'cap'
+    captionLabel.textContent = 'Screen'
+    dock.append(thumb, captionLabel)
+    const overlay = document.createElement('div')
+    overlay.id = 'ds-screen-overlay'
+    overlay.style.top = `${top}px`
+    const bar = document.createElement('div')
+    bar.className = 'bar'
+    const label = document.createElement('span')
+    label.textContent = 'Screen'
+    const status = document.createElement('span')
+    const button = (text, action) => {
+      const node = document.createElement('button')
+      node.type = 'button'
+      node.textContent = text
+      node.addEventListener('click', action)
+      return node
+    }
+    const stage = document.createElement('canvas')
+    stage.className = 'stage'
+    let expanded = false
+    let frame = null
+    const shown = () => (expanded ? stage : thumb)
+    const pointOf = (event, canvas) => {
+      const box = canvas.getBoundingClientRect()
+      if (!frame?.width || !box.width) return null
+      return {
+        x: event.offsetX, y: event.offsetY,
+        viewWidth: box.width, viewHeight: box.height,
+      }
+    }
+    const onPointer = (event) => {
+      const canvas = event.currentTarget
+      const point = pointOf(event, canvas)
+      if (point) void ipcRenderer.invoke('ds-bot:screen-pointer', point)
+    }
+    thumb.addEventListener('pointerdown', (event) => { expanded = true; sync(); onPointer(event) })
+    stage.addEventListener('pointerdown', onPointer)
+    stage.tabIndex = 0
+    stage.addEventListener('keydown', (event) => {
+      if (event.key.length === 1 || event.key === 'Enter') {
+        event.preventDefault()
+        void ipcRenderer.invoke('ds-bot:screen-type', event.key === 'Enter' ? '\n' : event.key)
+      }
+    })
+    bar.append(label, status, button('×', () => { expanded = false; sync() }))
+    overlay.append(bar, stage)
+    document.documentElement.append(dock, overlay)
+    const sync = () => {
+      const owned = document.querySelector('[data-screen-thumb]')
+      const ownedBox = owned?.getBoundingClientRect()
+      const pageOwns = ownedBox && ownedBox.width >= 8 && ownedBox.height >= 8
+      dock.hidden = expanded || Boolean(pageOwns)
+      overlay.classList.toggle('open', expanded && !pageOwns)
+    }
+    ipcRenderer.on('ds-bot:screen-frame', (_event, next) => {
+      frame = next
+      paintFrame(thumb, next)
+      paintFrame(stage, next)
+      if (next?.state === 'needs-token') status.textContent = 'Set CUA_ENV_TOKEN'
+      else if (next?.state === 'error') status.textContent = 'Desktop unavailable'
+      else status.textContent = ''
+    })
+    void ipcRenderer.invoke('ds-bot:screen-show')
+    window.addEventListener('pagehide', () => { void ipcRenderer.invoke('ds-bot:screen-hide') }, { once: true })
+    sync()
+  }
+  if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', mount, { once: true })
+  else mount()
 }
 
 function frameless(height, mica) {

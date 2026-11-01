@@ -91,6 +91,17 @@ Apache License, Version 2.0, Copyright (c) Microsoft Corporation
   The license is the same Apache License, Version 2.0 that covers this
   repository; see LICENSE for the text.
 
+LightVela computer-use pack (Hermes Agent computer use)
+MIT License, Copyright (c) Hermes Agent contributors
+
+  - vendor/lightvela-computer-use/computer_use and bot_desktop are a reference
+    copy of the pack's Cua-driver desktop control and per-profile Xfce desktop.
+    DS-Bot does not run this code and is not Hermes. The license text is
+    vendor/lightvela-computer-use/LICENSE.MIT.
+  - skills/desktop-browser-control/SKILL.md adapts the pack's MIT skill of the
+    same name (author Hermes Agent): visible desktop, CDP, then a screenshot
+    check. Hermes tool names are replaced with the EGO and CUA capabilities.
+
 No other third-party code is copied into this repository. At run time the
 plugin uses the @deepseek-ai/* packages of the DeepSeek Harness install it
 runs in; they are not bundled. The bundled ds-bot/office.js includes

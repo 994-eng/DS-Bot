@@ -3,6 +3,8 @@
 // it, the route's key in DSH's credential store under the reference the route names.
 // The providers to add are the ones DSH's directory of configurable providers offers.
 
+import { mimoAlready, mimoProfile, mimoRouteEnabled } from './mimo-route.js'
+
 const PI_AI = 'llm-pi-ai'
 const ROUTE_ID = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/
 // The wire protocols DSH's pi-ai adapter serves on a route it ships nothing about.
@@ -220,6 +222,33 @@ export function install(rt) {
     }
     rt.dropCatalog()
     return providersView()
+  }
+
+  // Registers the route when this process is the DSH the window talks to.
+  // The key stays in MIMO_API_KEY on that machine. A local package check skips it.
+  async function ensureMimo() {
+    if (!mimoRouteEnabled()) return
+    const found = seams()
+    if (found === undefined) return
+    const map = sections(found.settings)
+    const section = map.get(PI_AI)
+    const current = section?.value?.providers?.mimo
+    if (!mimoAlready(current)) {
+      await found.settings.mutate(PI_AI, [{ op: 'set', path: ['providers', 'mimo'], value: mimoProfile() }], section?.revision)
+      rt.dropCatalog?.()
+    }
+    const defaults = ctx.get?.('agentDefaultModel')
+    const selection = defaults?.currentSelection?.()
+    if (typeof defaults?.saveSelection === 'function' && !selection?.provider) {
+      await defaults.saveSelection({ provider: 'mimo', model: 'mimo-v2.6-flash' })
+    }
+  }
+
+  if (typeof ctx.effect === 'function') {
+    ctx.effect(() => {
+      const pending = ensureMimo().catch(() => {})
+      return () => { void pending }
+    }, 'ds-bot: mimo route')
   }
 
   Object.assign(rt, { keyRefs, missingKeys, providersView, setProviderKey, clearProviderKey, addProvider, discoverModels, removeProvider })

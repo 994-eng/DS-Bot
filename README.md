@@ -13,6 +13,59 @@ English | [中文](README.zh.md)
 
 DS Bot is a bot plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH). It turns DSH into bots. You create your own bots, then talk and work with them.
 
+This repository is the [994-eng/DS-Bot](https://github.com/994-eng/DS-Bot) fork of [Fei2411/DS-Bot](https://github.com/Fei2411/DS-Bot). It keeps that project's Apache 2.0 license, copyright and disclaimer: DS Bot is not an official DeepSeek product. The fork's own aim is a desktop client closer to Grok Bot and Groupbot. Four extensions carry that, and none of them patch DeepSeek Harness:
+
+- **Linux desktop.** Agents drive a graphical session through [Cua spacesd](https://cua.ai/docs/cua-sdk/guides/spacesd) (gRPC on port 3211): screenshots, mouse, keyboard, windows, accessibility. See [`extensions/linux-desktop/`](extensions/linux-desktop/).
+- **Agent browser.** [ego(lite)](https://github.com/citrolabs/ego-lite) gives each Bot a Task Space in one Chromium. DevTools and a redacted network log go through CDP. Playwright remains the fallback and the desktop app's existing browser bridge. See [`extensions/windows-browser/`](extensions/windows-browser/).
+- **Virtual screens.** The right-hand column can show the selected Bot's screen. One machine and one shared data directory; the screens stay separate.
+- **Cloud desktop.** A Linux GUI you run on a server, viewed in the Cua viewer or over noVNC, driven by the same spacesd. See [`extensions/cloud-desktop/`](extensions/cloud-desktop/).
+
+The layout is described in [docs/architecture.md](docs/architecture.md). The model is told which capability to call in [docs/harness-identity-prompt.md](docs/harness-identity-prompt.md). A GUI task starts on the visual desktop: CUA screenshot, act, CUA screenshot again. Browser work is the EGO capability. Nothing in the plugin remaps one tool call into the other.
+
+Skills for that loop live in [`skills/`](skills/). DeepSeek Harness loads a `SKILL.md` folder from `$DSH_HOME/skills` (the desktop app’s own data folder). Copy them on the server:
+
+```sh
+mkdir -p "$DSH_HOME/skills"
+cp -a skills/computer-use-desktop skills/ego-browser skills/desktop-browser-control "$DSH_HOME/skills/"
+```
+
+[`vendor/lightvela-computer-use/`](vendor/lightvela-computer-use/) is a reference copy of the LightVela/Hermes computer-use modules. DS-Bot does not run Hermes.
+
+## Windows client
+
+The Windows app does not ask you to log in, register, or enter an email. Install `DeepSeek-Bot-<version>-win-x64.exe` and open it. The window opens the server’s DeepSeek Harness at `http://38.76.188.71:3080`, and the desktop is already on the right. There is no API key in git. A package built with the `MIMO_API_KEY` secret carries that key inside the installer.
+
+| | |
+|---|---|
+| DSH web (chat, model menu) | `http://38.76.188.71:3080` |
+| Computer (Cua spacesd) | `http://38.76.188.71:3211` |
+| Screen | `http://38.76.188.71:8890/desktop` |
+
+**Computer** in the right-hand panel is a small preview labeled with the Bot’s screen. Chat and the window buttons stay usable. Click the preview to open the desktop large, below the caption buttons. The picture is a screenshot from Cua spacesd at `http://38.76.188.71:3211`, fetched by this app. Mouse and keyboard go to that same API. The app does not load the HTML viewer and does not pass frames through port 8890 or through DeepSeek Harness. The Windows package step reads the Actions secret `CUA_ENV_TOKEN` and, when it is set, puts it in the installer next to the MiMo key. Set that secret on the repository (Settings → Secrets and variables → Actions) to the value in `/etc/ds-bot/cua-env-token` on the server. Do not commit it. `CUA_ENV_TOKEN` and `CUA_ENV_TOKEN_FILE` on the computer still override the packed value. The token is a request header, not part of a URL. Browser work uses the EGO capability. The desktop uses CUA. The identity prompt in `docs/harness-identity-prompt.md` is what the plugin tells the model. The skills in `skills/` ship inside the app.
+
+If the page says `dsh web authentication required`, the server printed a connection URL when `dsh web` started. On the Windows machine set `DS_BOT_SERVER` to that full URL and start the app again. Do not commit the URL.
+
+`DS_BOT_SERVER=local` keeps the app on its own Host. That is what the package check uses.
+
+## MiMo
+
+The model route is MiMo, OpenAI-compatible, at `https://mimo.ezlook.top/v1`. Provider id `mimo`.
+
+| Model | Role |
+|---|---|
+| `mimo-v2.6-flash` | Default |
+| `mimo-v2.6-pro` | In the model menu |
+
+The route is registered under the credential name `MIMO_API_KEY`. There is no provider form. The key is not in git. The Windows package step reads the GitHub Actions secret `MIMO_API_KEY` and, when it is set, puts it in the installer. Set that secret on the repository before building if the packaged app should call MiMo itself. The server at `:3080` can hold the same variable for the page the window opens. An empty secret still builds; the route is present and the key is absent.
+
+A Windows rebuild is required before an installed copy picks this up. GitHub Actions uploads `DeepSeek-Bot-win-x64` from the **Desktop app package (Windows)** job. To build on a Windows machine:
+
+```powershell
+.\scripts\build-windows-client.ps1
+```
+
+The installer is `app\dist-pack\DeepSeek-Bot-<version>-win-x64.exe`. Do not change that file after it is built; NSIS checks it. The same job also uploads `DeepSeek-Bot-win-x64-portable`, a zip of the unpacked app. `resources\mimo-credentials.json` inside it is written at pack time from the `MIMO_API_KEY` and `CUA_ENV_TOKEN` secrets. Unzip it and run `DeepSeek Bot.exe`. CI does not connect to `38.76.188.71`, so the live desktop is not part of the automated check.
+
 ![Say one sentence to Chief, and it sets up the bots and the group chat](docs/images/team.png)
 
 ## Install

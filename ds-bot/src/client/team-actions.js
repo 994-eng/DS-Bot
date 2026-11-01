@@ -1,5 +1,6 @@
 import { countCards, heldCardKey } from './sources.js'
 import { noteClientError } from './diagnostics.js'
+import { requestLiveDesktop } from './virtual-screen.js'
 
 // The actions every window that draws the Bot views shares: dialogs and panels (the `ui`
 // source), requests to the host, and the notes the transcript keeps. The shell around the
@@ -43,7 +44,8 @@ export function teamActions({ call, after, partFor, roster, ui, live, cards, hel
         const snap = roster.getSnapshot()
         const view = state.view === 'browser' && snap.byId[id] === undefined ? 'details'
           : state.view === 'side' && !(snap.sideChats?.[snap.byId[id]?.id] ?? []).some(chat => chat?.id === state.side) ? 'details'
-            : state.view
+            : state.view === 'screen' && snap.byId[id] === undefined ? 'details'
+              : state.view
         return { ...state, details: id, view, renaming: false, tab: null }
       })
     },
@@ -57,8 +59,16 @@ export function teamActions({ call, after, partFor, roster, ui, live, cards, hel
     closeMemory: () => { ui.set(state => (state.memory ? { ...state, memory: null } : state)) },
     openConnectors: () => { ui.set(state => ({ ...state, settings: { page: 'connectors', id: null }, menu: null, palette: null, newChat: null })) },
     setPanelView: (view) => {
-      if (view !== 'details' && view !== 'browser' && view !== 'side') return
+      if (view !== 'details' && view !== 'browser' && view !== 'side' && view !== 'screen') return
       ui.set(state => (state.details && state.view !== view ? { ...state, view, panelYield: yieldTo(state, view) } : state))
+    },
+    // The right-hand screen follows the open Bot. Another Bot's chat keeps the
+    // screen view, so the column shows that Bot's display.
+    openScreen: (sessionId) => {
+      ui.set(state => ({ ...state, details: sessionId ?? state.details, view: 'screen', renaming: false, tab: null, panelYield: yieldTo(state, 'screen') }))
+      const snap = roster.getSnapshot?.()
+      const bot = snap?.byId?.[sessionId]
+      requestLiveDesktop(globalThis.dsBotApp?.desktop, bot ?? { id: sessionId, name: '' })
     },
     // A side chat on the panel's own view, opened from the strip, the `···`
     // menus or `/side`. Closing the panel keeps the chats; only a tab's × deletes.

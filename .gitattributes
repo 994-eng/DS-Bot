@@ -1,5 +1,9 @@
 # Shell scripts are copied into the Docker image as they are; CRLF breaks them.
 *.sh text eol=lf
 
+# The identity prompt is compared with the module that embeds it. Keep both LF.
+docs/harness-identity-prompt.md text eol=lf
+ds-bot/src/host/fork-identity.js text eol=lf
+
 # Cookie fixtures test BOM and line-ending variants; normalizing them removes what they test.
 app/test/fixtures/** -text

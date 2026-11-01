@@ -40,6 +40,16 @@ jobs:
       - run: node scripts/build-client.mjs --check
       - run: npm run lint
 
+  extensions:
+    name: Extension scaffolds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test extensions/*/test/*.test.js app/test/virtual-screens.test.mjs
+
   scan:
     name: Leak scan
     runs-on: ubuntu-latest
@@ -104,8 +114,38 @@ jobs:
           node-version: 24
       - run: npm ci --no-fund --no-audit
       - run: npm run dist
+        env:
+          MIMO_API_KEY: ${{ secrets.MIMO_API_KEY }}
+          CUA_ENV_TOKEN: ${{ secrets.CUA_ENV_TOKEN }}
       - name: Check the packaged app
         run: node scripts/check-packed.mjs
+      - name: Upload the Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: DeepSeek-Bot-win-x64
+          path: app/dist-pack/DeepSeek-Bot-*-win-x64.exe
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      # Portable zip of win-unpacked. Credentials are already in resources/ from
+      # beforePack. Do not edit the NSIS exe after it is built; that breaks its checksum.
+      - name: Zip the portable Windows app
+        run: |
+          set -euo pipefail
+          test -f "dist-pack/win-unpacked/resources/mimo-credentials.json"
+          version="$(node -p "require('./package.json').version")"
+          zip="dist-pack/DeepSeek-Bot-${version}-win-x64-portable.zip"
+          rm -f "$zip"
+          tar -a -cf "$zip" -C dist-pack/win-unpacked .
+          test -f "$zip"
+      - name: Upload the portable Windows app
+        uses: actions/upload-artifact@v4
+        with:
+          name: DeepSeek-Bot-win-x64-portable
+          path: app/dist-pack/DeepSeek-Bot-*-win-x64-portable.zip
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
       # The runner is a fresh machine, so the installer may run here. It must install for the
       # current user only, the installed app must pass the same check, and the uninstaller must
       # remove it again.

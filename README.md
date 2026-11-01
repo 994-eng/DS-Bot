@@ -64,7 +64,7 @@ A Windows rebuild is required before an installed copy picks this up. GitHub Act
 .\scripts\build-windows-client.ps1
 ```
 
-The installer is `app\dist-pack\DeepSeek-Bot-<version>-win-x64.exe`. CI does not connect to `38.76.188.71`, so the live desktop is not part of the automated check.
+The installer is `app\dist-pack\DeepSeek-Bot-<version>-win-x64.exe`. Do not change that file after it is built; NSIS checks it. The same job also uploads `DeepSeek-Bot-win-x64-portable`, a zip of the unpacked app. `resources\mimo-credentials.json` inside it is written at pack time from the `MIMO_API_KEY` and `CUA_ENV_TOKEN` secrets. Unzip it and run `DeepSeek Bot.exe`. CI does not connect to `38.76.188.71`, so the live desktop is not part of the automated check.
 
 ![Say one sentence to Chief, and it sets up the bots and the group chat](docs/images/team.png)
 

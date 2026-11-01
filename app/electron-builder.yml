@@ -24,7 +24,8 @@ extraResources:
     to: primary-runtime
   - from: build/runtime/office-skills
     to: office-skills
-  # Written by beforePack from MIMO_API_KEY and CUA_ENV_TOKEN. Empty when unset.
+  # Written by beforePack from MIMO_API_KEY and CUA_ENV_TOKEN before the app is packed.
+  # The NSIS exe is not edited after that. The portable zip is win-unpacked as built.
   - from: build/mimo-credentials.json
     to: mimo-credentials.json
   - from: ../skills

@@ -127,6 +127,25 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
+      # Portable zip of win-unpacked. Credentials are already in resources/ from
+      # beforePack. Do not edit the NSIS exe after it is built; that breaks its checksum.
+      - name: Zip the portable Windows app
+        run: |
+          set -euo pipefail
+          test -f "dist-pack/win-unpacked/resources/mimo-credentials.json"
+          version="$(node -p "require('./package.json').version")"
+          zip="dist-pack/DeepSeek-Bot-${version}-win-x64-portable.zip"
+          rm -f "$zip"
+          tar -a -cf "$zip" -C dist-pack/win-unpacked .
+          test -f "$zip"
+      - name: Upload the portable Windows app
+        uses: actions/upload-artifact@v4
+        with:
+          name: DeepSeek-Bot-win-x64-portable
+          path: app/dist-pack/DeepSeek-Bot-*-win-x64-portable.zip
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
       # The runner is a fresh machine, so the installer may run here. It must install for the
       # current user only, the installed app must pass the same check, and the uninstaller must
       # remove it again.

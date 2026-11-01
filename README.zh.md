@@ -64,7 +64,7 @@ Windows 应用不会要求登录、注册或填写邮箱。安装 `DeepSeek-Bot-
 .\scripts\build-windows-client.ps1
 ```
 
-安装包在 `app\dist-pack\DeepSeek-Bot-<版本>-win-x64.exe`。CI 不会去连 `38.76.188.71`，所以自动化测试里没有那台机器的实时画面。
+安装包在 `app\dist-pack\DeepSeek-Bot-<版本>-win-x64.exe`。打好之后不要再改这个文件，NSIS 会校验它。同一次任务还会上传 `DeepSeek-Bot-win-x64-portable`，是未打包目录的 zip。里面的 `resources\mimo-credentials.json` 在打包时由 `MIMO_API_KEY` 和 `CUA_ENV_TOKEN` 两个 secret 写入。解压后运行 `DeepSeek Bot.exe`。CI 不会去连 `38.76.188.71`，所以自动化测试里没有那台机器的实时画面。
 
 ![和 Chief 说一句话，它就把 bot 和群聊建好](docs/images/team.zh.png)
 

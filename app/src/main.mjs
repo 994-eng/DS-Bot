@@ -29,7 +29,7 @@ import { createDeferredPrompt } from './update-prompt.mjs'
 import { applyCloudDefaults } from './cloud-backend.mjs'
 import { isAppServer, serverPage, serverUrl } from './default-server.mjs'
 import { applyMimoEnv, mimoCredentialPaths } from './mimo.mjs'
-import { readDesktopToken } from './desktop-viewer.mjs'
+import { packedCredentialPaths, readDesktopToken } from './desktop-viewer.mjs'
 import { createNativeDesktop } from './native-desktop.mjs'
 import { CAPTION_HEIGHT, cssColor, micaAvailable, nativeThemeSource } from './window-frame.mjs'
 
@@ -192,10 +192,14 @@ async function start() {
   const port = await hostPort(join(app.getPath('userData'), 'host-port.json'))
   origin = `http://127.0.0.1:${String(port)}`
   const resources = typeof process.resourcesPath === 'string' ? process.resourcesPath : ''
-  const packedKey = resources === '' ? '' : join(resources, 'mimo-credentials.json')
-  if (packedKey !== '') process.env.CUA_PACKED_CREDENTIALS = packedKey
+  const packedKeys = packedCredentialPaths({
+    resourcesPath: process.resourcesPath,
+    execPath: process.execPath,
+    appPath: app.getAppPath(),
+  })
+  if (packedKeys[0]) process.env.CUA_PACKED_CREDENTIALS = packedKeys[0]
   const skillDir = resources === '' ? '' : join(resources, 'desktop-skills')
-  applyMimoEnv(process.env, { readFileSync, paths: [packedKey, ...mimoCredentialPaths(process.env)].filter(path => path !== '') })
+  applyMimoEnv(process.env, { readFileSync, paths: [...packedKeys, ...mimoCredentialPaths(process.env)] })
   const pnpm = join(app.getAppPath(), 'node_modules', 'pnpm', 'bin', 'pnpm.mjs')
   const profileDir = join(where.dataDir, 'profiles', PROFILE)
   mkdirSync(profileDir, { recursive: true })

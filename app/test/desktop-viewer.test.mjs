@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { createDesktopViewer, readDesktopToken, viewerTarget } from '../src/desktop-viewer.mjs'
+import { createDesktopViewer, packedCredentialPaths, readDesktopToken, viewerTarget } from '../src/desktop-viewer.mjs'
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '../src')
 
@@ -66,9 +66,16 @@ test('a missing token does not invent one, and source does not store one', () =>
   assert.equal(readDesktopToken({ CUA_ENV_TOKEN_FILE: '/no/such/token-file' }), '')
   assert.equal(readDesktopToken({ CUA_ENV_TOKEN_FILE: '/tmp/x' }, () => 'from-file\n'), 'from-file')
   const packed = JSON.stringify({ CUA_ENV_TOKEN: 'from-pack' })
-  assert.equal(readDesktopToken({ CUA_PACKED_CREDENTIALS: '/tmp/packed' }, () => packed), 'from-pack')
-  assert.equal(readDesktopToken({ CUA_ENV_TOKEN: 'from-env', CUA_PACKED_CREDENTIALS: '/tmp/packed' }, () => packed), 'from-env')
-  assert.equal(readDesktopToken({ CUA_ENV_TOKEN_FILE: '/tmp/x', CUA_PACKED_CREDENTIALS: '/tmp/packed' }, () => 'from-file\n'), 'from-file')
+  assert.equal(readDesktopToken({ CUA_PACKED_CREDENTIALS: '/tmp/packed' }, () => packed, { resourcesPath: '', execPath: '' }), 'from-pack')
+  assert.equal(readDesktopToken({ CUA_ENV_TOKEN: 'from-env', CUA_PACKED_CREDENTIALS: '/tmp/packed' }, () => packed, { resourcesPath: '', execPath: '' }), 'from-env')
+  assert.equal(readDesktopToken({ CUA_ENV_TOKEN_FILE: '/tmp/x', CUA_PACKED_CREDENTIALS: '/tmp/packed' }, () => 'from-file\n', { resourcesPath: '', execPath: '' }), 'from-file')
+  const resourcesFile = join('/app', 'resources', 'mimo-credentials.json')
+  const besideExe = join('/app', 'resources', 'mimo-credentials.json')
+  assert.deepEqual(packedCredentialPaths({ resourcesPath: join('/app', 'resources'), execPath: join('/app', 'DeepSeek Bot.exe'), appPath: '' }), [resourcesFile, besideExe].filter((path, index, all) => all.indexOf(path) === index))
+  assert.equal(readDesktopToken({}, (path) => {
+    if (path === resourcesFile) return JSON.stringify({ CUA_ENV_TOKEN: 'from-resources' })
+    throw new Error(`missing ${path}`)
+  }, { resourcesPath: join('/app', 'resources'), execPath: join('/elsewhere', 'DeepSeek Bot.exe') }), 'from-resources')
   const text = ['cloud-backend.mjs', 'desktop-viewer.mjs', 'main.mjs'].map(name => readFileSync(join(SRC, name), 'utf8')).join('\n')
   assert.equal(text.includes('38.76.188.71'), true)
   assert.equal(/CUA_ENV_TOKEN\s*[:=]\s*['"][^'"]+['"]/u.test(text), false)
